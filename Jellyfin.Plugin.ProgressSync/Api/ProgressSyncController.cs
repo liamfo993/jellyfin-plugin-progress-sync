@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Data;
+using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.ProgressSync.Models;
@@ -306,6 +307,153 @@ public sealed class ProgressSyncController : ControllerBase
             .ToList();
 
         return new AdminOverviewDto(_injectionStatus.State, _injectionStatus.Message, links);
+    }
+
+    /// <summary>
+    /// Searches movies, series, and audio for admin sync setup.
+    /// </summary>
+    /// <param name="search">The item name to search for.</param>
+    /// <returns>Matching library items.</returns>
+    [HttpGet("Admin/Items")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<IReadOnlyList<AdminItemDto>> SearchAdminItems([FromQuery] string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
+        {
+            return BadRequest("Enter at least two characters to search.");
+        }
+
+        var items = _libraryManager.GetItemsResult(new InternalItemsQuery
+        {
+            SearchTerm = search.Trim(),
+            Recursive = true,
+            Limit = 50,
+            IncludeItemTypes = [BaseItemKind.Audio, BaseItemKind.Movie, BaseItemKind.Series]
+        }).Items
+            .Where(item => !item.IsVirtualItem)
+            .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
+            .ToList();
+
+        return items;
+    }
+
+    /// <summary>
+    /// Copies progress once or creates an ongoing link between two users.
+    /// </summary>
+    /// <param name="request">The item, users, and optional ongoing sync mode.</param>
+    /// <returns>The copy result and any active link.</returns>
+    [HttpPost("Admin/Sync")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<AdminSyncResponse> AdminSync([FromBody] AdminSyncRequest? request)
+    {
+        if (request is null)
+        {
+            return BadRequest("Sync settings are required.");
+        }
+
+        if (request.Mode is { } requestedMode && !Enum.IsDefined(requestedMode))
+        {
+            return BadRequest("Choose a valid sync mode.");
+        }
+
+        var source = GetEnabledUser(request.SourceUserId);
+        var target = GetEnabledUser(request.TargetUserId);
+        if (source is null || target is null || source.Id == target.Id)
+        {
+            return BadRequest("Select two different enabled users.");
+        }
+
+        var item = GetVisibleItem(request.ItemId, source);
+        if (item is null || GetVisibleItem(request.ItemId, target) is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsSupported(item))
+        {
+            return BadRequest("Choose a movie, series, or audio item.");
+        }
+
+        if (request.Mode is not { } mode)
+        {
+            return new AdminSyncResponse(
+                _copier.CopyScope(source, target, item, UserDataSaveReason.UpdateUserData),
+                null,
+                null);
+        }
+
+        if (LinkRules.ResolveRoot(item) is not { } rootId)
+        {
+            return BadRequest("This item cannot be linked for continuous sync.");
+        }
+
+        var rootItem = GetVisibleItem(rootId, target);
+        if (rootItem is null || GetVisibleItem(rootId, source) is null)
+        {
+            return NotFound();
+        }
+
+        var link = _store.Upsert(target.Id, source.Id, rootId, mode, BuildStaleCheck());
+        _logger.LogInformation(
+            "Progress Sync: administrator configured {Mode} sync from {SourceUser} to {TargetUser} on {ItemName} ({RootId})",
+            mode,
+            source.Username,
+            target.Username,
+            rootItem.Name,
+            rootId);
+
+        CopyResult? copy = null;
+        string? copyError = null;
+        try
+        {
+            copy = _copier.CopyScope(source, target, rootItem, UserDataSaveReason.UpdateUserData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Progress Sync: initial copy for admin-configured link {LinkId} failed", link.Id);
+            copyError = ex.Message;
+        }
+
+        var adminLink = new AdminLinkDto(
+            link.Id,
+            target.Username,
+            source.Username,
+            rootItem.Name,
+            rootId,
+            link.Mode,
+            link.CreatedUtc);
+        return new AdminSyncResponse(copy, adminLink, copyError);
+    }
+
+    /// <summary>
+    /// Deactivates a continuous sync link.
+    /// </summary>
+    /// <param name="linkId">The link id.</param>
+    /// <returns>No content when the link is removed.</returns>
+    [HttpDelete("Admin/Links/{linkId}")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult DeleteAdminLink([FromRoute] Guid linkId)
+    {
+        var link = _store.Snapshot.Find(linkId);
+        if (link is null)
+        {
+            return NotFound();
+        }
+
+        _store.Remove(linkId, BuildStaleCheck());
+        _logger.LogInformation(
+            "Progress Sync: administrator deactivated {Mode} link {LinkId} on {RootId}",
+            link.Mode,
+            link.Id,
+            link.RootItemId);
+        return NoContent();
     }
 
     /// <summary>

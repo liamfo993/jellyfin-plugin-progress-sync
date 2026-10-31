@@ -5,13 +5,16 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Api;
 using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.ProgressSync.Tests;
@@ -31,6 +34,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly Series _series;
     private readonly Episode _episode;
     private readonly Movie _movie;
+    private readonly Audio _audio;
 
     public ProgressSyncControllerTests()
     {
@@ -42,6 +46,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
         _series = _server.AddItem(new Series { Id = Guid.NewGuid(), Name = "Show" });
         _episode = _server.AddItem(new Episode { Id = Guid.NewGuid(), SeriesId = _series.Id });
         _movie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Movie" });
+        _audio = _server.AddItem(new Audio { Id = Guid.NewGuid(), Name = "Track" });
     }
 
     public void Dispose()
@@ -167,6 +172,100 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.False(alicesView.IsCreator);
         Assert.Equal(204, Status(As(_alice).DeleteLink(link.Id)));
         Assert.Empty(_store.Snapshot.All);
+    }
+
+    [Fact]
+    public void AdminSync_OneTimeCopyCopiesSourceProgressWithoutCreatingALink()
+    {
+        _server.Data[(_alice.Id, _audio.Id)] = FakeServer.Progress(1200, played: true, playCount: 2);
+
+        var result = As(_alice).AdminSync(new AdminSyncRequest(_audio.Id, _alice.Id, _bob.Id, null)).Value!;
+
+        Assert.Null(result.Link);
+        Assert.Null(result.CopyError);
+        Assert.NotNull(result.Copy);
+        Assert.Equal(1, result.Copy.Total);
+        Assert.Equal(1, result.Copy.Updated);
+        Assert.Equal(1200, _server.Get(_bob.Id, _audio.Id).PlaybackPositionTicks);
+        Assert.Empty(_store.Snapshot.All);
+    }
+
+    [Theory]
+    [InlineData(LinkMode.Follow)]
+    [InlineData(LinkMode.Mirror)]
+    public void AdminSync_ContinuousModesCreateActiveLinkAndCopySourceProgress(LinkMode mode)
+    {
+        _server.Data[(_alice.Id, _audio.Id)] = FakeServer.Progress(2400);
+
+        var result = As(_alice).AdminSync(new AdminSyncRequest(_audio.Id, _alice.Id, _bob.Id, mode)).Value!;
+
+        Assert.NotNull(result.Link);
+        Assert.Equal(mode, result.Link.Mode);
+        Assert.Equal(_bob.Username, result.Link.CreatorName);
+        Assert.Equal(_alice.Username, result.Link.PartnerName);
+        Assert.Null(result.CopyError);
+        Assert.NotNull(result.Copy);
+        Assert.Equal(2400, _server.Get(_bob.Id, _audio.Id).PlaybackPositionTicks);
+        var link = Assert.Single(_store.Snapshot.All);
+        Assert.Equal(_bob.Id, link.CreatorUserId);
+        Assert.Equal(_alice.Id, link.PartnerUserId);
+        Assert.Equal(mode, link.Mode);
+    }
+
+    [Fact]
+    public void AdminSync_RejectsSameUserAndItemsNotVisibleToBothUsers()
+    {
+        var controller = As(_alice);
+
+        Assert.Equal(400, Status(controller.AdminSync(
+            new AdminSyncRequest(_audio.Id, _alice.Id, _alice.Id, null))));
+
+        _server.Hidden.Add((_bob.Id, _audio.Id));
+        Assert.Equal(404, Status(controller.AdminSync(
+            new AdminSyncRequest(_audio.Id, _alice.Id, _bob.Id, LinkMode.Follow))));
+        Assert.Empty(_store.Snapshot.All);
+    }
+
+    [Fact]
+    public void AdminSync_ReportsInitialCopyFailureAndKeepsContinuousLinkActive()
+    {
+        _server.ThrowOnSaveFor.Add(_bob.Id);
+        _server.Data[(_alice.Id, _audio.Id)] = FakeServer.Progress(400);
+
+        var result = As(_alice).AdminSync(
+            new AdminSyncRequest(_audio.Id, _alice.Id, _bob.Id, LinkMode.Follow)).Value!;
+
+        Assert.Null(result.Copy);
+        Assert.NotNull(result.CopyError);
+        Assert.Contains("simulated failure", result.CopyError, StringComparison.Ordinal);
+        Assert.NotNull(result.Link);
+        Assert.Single(_store.Snapshot.All);
+    }
+
+    [Fact]
+    public void DeleteAdminLink_DeactivatesAnyContinuousLink()
+    {
+        var link = _store.Upsert(_bob.Id, _alice.Id, _audio.Id, LinkMode.Follow, _ => false);
+
+        Assert.Equal(204, Status(As(_alice).DeleteAdminLink(link.Id)));
+        Assert.Empty(_store.Snapshot.All);
+    }
+
+    [Fact]
+    public void SearchAdminItems_RequiresTwoCharactersAndReturnsSupportedItems()
+    {
+        var controller = As(_alice);
+        Assert.Equal(400, Status(controller.SearchAdminItems(" ")));
+
+        _server.Library
+            .Setup(library => library.GetItemsResult(It.IsAny<InternalItemsQuery>()))
+            .Returns(new QueryResult<BaseItem>([_movie, _series, _audio]));
+
+        var items = controller.SearchAdminItems("  Show  ").Value!;
+        Assert.Equal(3, items.Count);
+        Assert.Contains(items, item => item.Id == _movie.Id && item.Type == "Movie");
+        Assert.Contains(items, item => item.Id == _series.Id && item.Type == "Series");
+        Assert.Contains(items, item => item.Id == _audio.Id && item.Type == "Audio");
     }
 
     [Fact]

@@ -80,7 +80,8 @@ part of itself when user data changes.
 ## REST API
 
 All routes start with `/ProgressSync`. User routes act on the caller only; no route accepts a
-target user.
+target user. The elevated admin routes provide an explicit source/target workflow on the plugin
+settings page and verify that both users can access the selected item before copying or linking it.
 
 | Route | Access | Purpose |
 |---|---|---|
@@ -90,6 +91,9 @@ target user.
 | `DELETE /Links/{linkId}` | user | Remove a link the caller may remove (404 otherwise) |
 | `GET /ClientScript` | anonymous | The web client script |
 | `GET /Admin/Overview` | admin | Integration status and all links, for the dashboard page |
+| `GET /Admin/Items` | admin | Search movies, series, and audio for sync setup |
+| `POST /Admin/Sync` | admin | Copy once or create a one-way/two-way continuous link |
+| `DELETE /Admin/Links/{linkId}` | admin | Deactivate any continuous link |
 | `GET /Admin/GlobalSettings` | admin | Current global settings and enabled user options |
 | `POST /Admin/GlobalSettings` | admin | Save the global user pair and media scopes |
 

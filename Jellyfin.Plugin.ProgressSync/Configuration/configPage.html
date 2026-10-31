@@ -5,7 +5,7 @@
     <title>Progress Sync</title>
 </head>
 <body>
-    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-select,emby-checkbox">
+    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <h2 class="sectionTitle">Progress Sync</h2>
@@ -13,6 +13,60 @@
                     Manage server-wide two-way progress sync and review links created by users.
                 </p>
                 <div id="psFtStatus" style="margin: 1em 0;"></div>
+                <h3 class="sectionTitle">Copy or sync two users</h3>
+                <p class="fieldDescription">
+                    Choose a library item and users. One-time copy does not create or change links. Follow continuously copies
+                    source progress to target; two-way continuously syncs both users. Creating a continuous sync
+                    also copies the current progress from source to target.
+                </p>
+                <form id="psSetupForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Find a movie, series, or audio item</label>
+                        <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
+                        <div class="fieldDescription">Enter at least two characters, then choose a result.</div>
+                    </div>
+                    <button id="psSearchItems" type="button" class="emby-button">
+                        <span>Search library</span>
+                    </button>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psItem">Library item</label>
+                        <select id="psItem" is="emby-select" class="emby-select" required></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psSourceUser">Copy progress from</label>
+                        <select id="psSourceUser" is="emby-select" class="emby-select" required></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psTargetUser">Copy progress to</label>
+                        <select id="psTargetUser" is="emby-select" class="emby-select" required></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psSyncMode">Sync duration and direction</label>
+                        <select id="psSyncMode" is="emby-select" class="emby-select">
+                            <option value="">One-time copy only</option>
+                            <option value="Follow">Continuous one-way (source to target)</option>
+                            <option value="Mirror">Continuous two-way</option>
+                        </select>
+                    </div>
+                    <button id="psApplySync" type="submit" class="emby-button button-submit">
+                        <span>Apply</span>
+                    </button>
+                    <div id="psSetupStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
+                </form>
+                <h3 class="sectionTitle">Active continuous syncs</h3>
+                <p class="fieldDescription">Deactivate any link here to stop future automatic progress updates.</p>
+                <table class="detailTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th class="detailTableHeaderCell">Item</th>
+                            <th class="detailTableHeaderCell">Progress flow</th>
+                            <th class="detailTableHeaderCell">Status</th>
+                            <th class="detailTableHeaderCell">Created</th>
+                            <th class="detailTableHeaderCell">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="psLinks"></tbody>
+                </table>
                 <h3 class="sectionTitle">Global sync</h3>
                 <p class="fieldDescription">
                     Global sync applies to progress changes after saving. Existing progress is not overwritten.
@@ -43,19 +97,6 @@
                     </button>
                     <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
                 </form>
-                <h3 class="sectionTitle">Links</h3>
-                <table class="detailTable" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th class="detailTableHeaderCell">Item</th>
-                            <th class="detailTableHeaderCell">Creator</th>
-                            <th class="detailTableHeaderCell">Partner</th>
-                            <th class="detailTableHeaderCell">Mode</th>
-                            <th class="detailTableHeaderCell">Created</th>
-                        </tr>
-                    </thead>
-                    <tbody id="psLinks"></tbody>
-                </table>
             </div>
         </div>
         <script type="text/javascript">
@@ -65,13 +106,15 @@
                 var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
 
                 function loadGlobalSettings(data) {
-                    var userA = page.querySelector('#psUserA');
-                    var userB = page.querySelector('#psUserB');
-                    [userA, userB].forEach(function (select) {
+                    var selects = ['#psUserA', '#psUserB', '#psSourceUser', '#psTargetUser'];
+                    selects.forEach(function (selector) {
+                        var select = page.querySelector(selector);
                         select.innerHTML = '';
                         var empty = document.createElement('option');
                         empty.value = '';
-                        empty.textContent = 'Not selected';
+                        empty.textContent = selector === '#psUserA' || selector === '#psUserB'
+                            ? 'Not selected'
+                            : 'Select a user';
                         select.appendChild(empty);
                         data.Users.forEach(function (user) {
                             var option = document.createElement('option');
@@ -81,6 +124,8 @@
                         });
                     });
 
+                    var userA = page.querySelector('#psUserA');
+                    var userB = page.querySelector('#psUserB');
                     userA.value = data.Settings.UserAId || '';
                     userB.value = data.Settings.UserBId || '';
                     page.querySelector('#psMovies').checked = data.Settings.Movies;
@@ -101,6 +146,7 @@
                     td.className = 'detailTableBodyCell';
                     td.textContent = text;
                     row.appendChild(td);
+                    return td;
                 }
 
                 function renderStatus(overview) {
@@ -126,7 +172,8 @@
                     body.innerHTML = '';
                     if (links.length === 0) {
                         var empty = document.createElement('tr');
-                        cell(empty, 'No links.');
+                        var emptyCell = cell(empty, 'No active continuous syncs.');
+                        emptyCell.colSpan = 5;
                         body.appendChild(empty);
                         return;
                     }
@@ -134,12 +181,124 @@
                         var row = document.createElement('tr');
                         row.className = 'detailTableBodyRow';
                         cell(row, link.ItemName);
-                        cell(row, link.CreatorName);
-                        cell(row, link.PartnerName);
-                        cell(row, link.Mode === 'Mirror' ? 'Two-way' : 'Follow (partner to creator)');
+                        cell(row, link.Mode === 'Mirror'
+                            ? link.CreatorName + ' and ' + link.PartnerName + ' (two-way)'
+                            : link.CreatorName + ' follows ' + link.PartnerName);
+                        cell(row, 'Active');
                         cell(row, new Date(link.CreatedUtc).toLocaleString());
+                        var actionCell = document.createElement('td');
+                        actionCell.className = 'detailTableBodyCell';
+                        var button = document.createElement('button');
+                        button.setAttribute('is', 'emby-button');
+                        button.type = 'button';
+                        button.className = 'emby-button';
+                        button.textContent = 'Deactivate';
+                        button.addEventListener('click', function () {
+                            deactivateLink(link, button);
+                        });
+                        actionCell.appendChild(button);
+                        row.appendChild(actionCell);
                         body.appendChild(row);
                     });
+                }
+
+                function refreshOverview() {
+                    return ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')).then(function (overview) {
+                        renderStatus(overview);
+                        renderLinks(overview.Links);
+                    });
+                }
+
+                function errorText(err) {
+                    return err && err.status ? 'HTTP ' + err.status : 'network error';
+                }
+
+                function confirmAsync(message, title) {
+                    return new Promise(function (resolve) {
+                        Dashboard.confirm(message, title, resolve);
+                    });
+                }
+
+                function searchItems() {
+                    var search = page.querySelector('#psItemSearch').value.trim();
+                    var status = page.querySelector('#psSetupStatus');
+                    var button = page.querySelector('#psSearchItems');
+                    var select = page.querySelector('#psItem');
+                    if (search.length < 2) {
+                        status.textContent = 'Enter at least two characters to search.';
+                        return;
+                    }
+
+                    button.disabled = true;
+                    select.innerHTML = '';
+                    var searching = document.createElement('option');
+                    searching.value = '';
+                    searching.textContent = 'Searching...';
+                    select.appendChild(searching);
+                    status.textContent = 'Searching the library...';
+                    ApiClient.getJSON(ApiClient.getUrl(
+                        'ProgressSync/Admin/Items?search=' + encodeURIComponent(search)
+                    )).then(function (items) {
+                        select.innerHTML = '';
+                        var placeholder = document.createElement('option');
+                        placeholder.value = '';
+                        placeholder.textContent = items.length ? 'Select an item' : 'No matching items';
+                        select.appendChild(placeholder);
+                        items.forEach(function (item) {
+                            var option = document.createElement('option');
+                            option.value = item.Id;
+                            option.textContent = item.Name + ' (' + item.Type + ')';
+                            select.appendChild(option);
+                        });
+                        status.textContent = items.length
+                            ? 'Found ' + items.length + ' matching item(s). Choose one below.'
+                            : 'No matching items. Try another title.';
+                    }, function (err) {
+                        status.textContent = 'Could not search the library (' + errorText(err) + ').';
+                    }).finally(function () {
+                        button.disabled = false;
+                    });
+                }
+
+                async function deactivateLink(link, button) {
+                    var status = page.querySelector('#psSetupStatus');
+                    button.disabled = true;
+                    var confirmed;
+                    try {
+                        confirmed = await confirmAsync(
+                            'Stop continuous progress sync for ' + link.ItemName + ' between '
+                                + link.CreatorName + ' and ' + link.PartnerName + '?',
+                            'Deactivate continuous sync'
+                        );
+                    } catch (err) {
+                        status.textContent = 'Could not open confirmation (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!confirmed) {
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = 'Deactivating continuous sync...';
+                    try {
+                        await ApiClient.ajax({
+                            type: 'DELETE',
+                            url: ApiClient.getUrl('ProgressSync/Admin/Links/' + link.Id)
+                        });
+                    } catch (err) {
+                        status.textContent = 'Could not deactivate continuous sync (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = 'Continuous sync deactivated.';
+                    try {
+                        await refreshOverview();
+                    } catch (err) {
+                        status.textContent = 'Continuous sync was deactivated, but the list could not be refreshed ('
+                            + errorText(err) + ').';
+                    }
                 }
 
                 mediaOptions.forEach(function (id) {
@@ -151,6 +310,108 @@
                         page.querySelector('#' + id).checked = this.checked;
                     }, this);
                     this.indeterminate = false;
+                });
+
+                page.querySelector('#psSearchItems').addEventListener('click', searchItems);
+                page.querySelector('#psItemSearch').addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        searchItems();
+                    }
+                });
+                page.querySelector('#psItemSearch').addEventListener('input', function () {
+                    var select = page.querySelector('#psItem');
+                    select.innerHTML = '';
+                    var placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = 'Search and select an item';
+                    select.appendChild(placeholder);
+                });
+
+                page.querySelector('#psSetupForm').addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    var button = page.querySelector('#psApplySync');
+                    var status = page.querySelector('#psSetupStatus');
+                    var itemSelect = page.querySelector('#psItem');
+                    var sourceSelect = page.querySelector('#psSourceUser');
+                    var targetSelect = page.querySelector('#psTargetUser');
+                    var itemId = itemSelect.value;
+                    var sourceUserId = sourceSelect.value;
+                    var targetUserId = targetSelect.value;
+                    var mode = page.querySelector('#psSyncMode').value;
+                    if (!itemId || !sourceUserId || !targetUserId) {
+                        status.textContent = 'Choose an item, a source user, and a target user.';
+                        return;
+                    }
+                    if (sourceUserId === targetUserId) {
+                        status.textContent = 'Source and target must be different users.';
+                        return;
+                    }
+
+                    var operation = mode
+                        ? 'create continuous sync and copy current progress'
+                        : 'copy progress once without creating or changing a continuous link';
+                    var confirmed;
+                    button.disabled = true;
+                    try {
+                        confirmed = await confirmAsync(
+                            'This will ' + operation + ' for ' + itemSelect.options[itemSelect.selectedIndex].text
+                                + ' from ' + sourceSelect.options[sourceSelect.selectedIndex].text
+                                + ' to ' + targetSelect.options[targetSelect.selectedIndex].text + '. Continue?',
+                            mode ? 'Set up continuous sync' : 'Copy progress once'
+                        );
+                    } catch (err) {
+                        status.textContent = 'Could not open confirmation (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!confirmed) {
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = mode ? 'Setting up continuous sync...' : 'Copying progress once...';
+                    try {
+                        var result = await ApiClient.ajax({
+                            type: 'POST',
+                            url: ApiClient.getUrl('ProgressSync/Admin/Sync'),
+                            data: JSON.stringify({
+                                ItemId: itemId,
+                                SourceUserId: sourceUserId,
+                                TargetUserId: targetUserId,
+                                Mode: mode || null
+                            }),
+                            contentType: 'application/json',
+                            dataType: 'json'
+                        });
+                        if (!result.Link) {
+                            status.textContent = 'One-time copy complete: updated ' + result.Copy.Updated
+                                + ' of ' + result.Copy.Total + ' items.'
+                                + (result.Copy.Skipped > 0 ? ' ' + result.Copy.Skipped + ' skipped.' : '')
+                                + ' No continuous link was created or changed.';
+                            return;
+                        }
+
+                        if (result.Copy) {
+                            status.textContent = 'Continuous sync is active. Initial copy updated '
+                                + result.Copy.Updated + ' of ' + result.Copy.Total + ' items.'
+                                + (result.Copy.Skipped > 0 ? ' ' + result.Copy.Skipped + ' skipped.' : '');
+                        } else {
+                            status.textContent = 'Continuous sync is active, but the initial copy failed: '
+                                + (result.CopyError || 'unknown error') + '. The link remains active; deactivate it below if needed.';
+                        }
+                        if (result.Link) {
+                            try {
+                                await refreshOverview();
+                            } catch (err) {
+                                status.textContent += ' The active sync list could not be refreshed (' + errorText(err) + ').';
+                            }
+                        }
+                    } catch (err) {
+                        status.textContent = 'Could not apply sync settings (' + errorText(err) + ').';
+                    } finally {
+                        button.disabled = false;
+                    }
                 });
 
                 page.querySelector('#psGlobalForm').addEventListener('submit', function (event) {

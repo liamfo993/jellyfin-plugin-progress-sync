@@ -64,7 +64,8 @@ Links pass changes along. If Ann follows Ben and Ben has a two-way link with Cle
 reaches Ben and then Ann.
 
 Syncing runs on the server, so progress made in any Jellyfin app is synced. The button itself is
-only in the web client. Admins can see all links under **Dashboard → Plugins → Progress Sync → Settings**.
+only in the web client. Admins can also set up one-time copies and continuous links between users,
+see which links are active, and deactivate them under **Dashboard → Plugins → Progress Sync → Settings**.
 
 Admins can also configure one global two-way user pair in plugin settings, selecting movies, series,
 music, or everything. Global rules apply to progress changes made after saving; they do not overwrite
