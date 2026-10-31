@@ -1,6 +1,6 @@
 name: "Progress Sync"
 guid: "c16569f5-02ed-4d6a-bbdb-649455e512d5"
-version: "1.0.0.0"
+version: "1.0.1.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 owner: "liamfo993"
@@ -14,4 +14,4 @@ imageUrl: "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-
 artifacts:
   - "Jellyfin.Plugin.ProgressSync.dll"
 changelog: |-
-  Initial release.
+  Fix plugin settings controls not rendering.
