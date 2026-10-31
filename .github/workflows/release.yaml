@@ -5,7 +5,13 @@ name: Release
 # deploys inside the jellyfin organisation, so third-party plugins need their own release job.
 on:
   release:
-    types: [released]
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -18,7 +24,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out the release tag

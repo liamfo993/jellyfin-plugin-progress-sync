@@ -10,6 +10,8 @@
      [JPRM](https://github.com/oddstr13/jellyfin-plugin-repository-manager);
    - attaches the zip to the release;
    - adds the version to `manifest.json` on `main`.
+   If the workflow does not run automatically, start it from **Actions → Release → Run workflow**
+   and enter the existing release tag (for example, `v1.0.0`).
 4. Check that
    `https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/manifest.json`
    lists the new version. Servers that added the repository then see the update in their catalog.
