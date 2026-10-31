@@ -3,8 +3,8 @@ using MediaBrowser.Model.Plugins;
 namespace Jellyfin.Plugin.ProgressSync.Configuration;
 
 /// <summary>
-/// Plugin configuration. Progress Sync has no settings; the type exists because the dashboard
-/// plugin pages expect a configurable plugin.
+/// Jellyfin's base configuration type. Progress Sync's admin settings are managed by its
+/// configuration page and persisted separately.
 /// </summary>
 public sealed class PluginConfiguration : BasePluginConfiguration
 {

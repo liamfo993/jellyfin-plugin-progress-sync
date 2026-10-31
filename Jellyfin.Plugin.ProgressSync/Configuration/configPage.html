@@ -5,7 +5,7 @@
     <title>Progress Sync</title>
 </head>
 <body>
-    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <h2 class="sectionTitle">Progress Sync</h2>
@@ -20,11 +20,11 @@
                 <form id="psGlobalForm">
                     <div class="selectContainer">
                         <label class="selectLabel" for="psUserA">User A</label>
-                        <select id="psUserA" class="emby-select"></select>
+                        <select id="psUserA" is="emby-select" class="emby-select"></select>
                     </div>
                     <div class="selectContainer">
                         <label class="selectLabel" for="psUserB">User B</label>
-                        <select id="psUserB" class="emby-select"></select>
+                        <select id="psUserB" is="emby-select" class="emby-select"></select>
                     </div>
                     <div class="checkboxContainer">
                         <label><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
