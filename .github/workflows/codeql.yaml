@@ -14,4 +14,4 @@ jobs:
   analyze:
     uses: jellyfin/jellyfin-meta-plugins/.github/workflows/scan-codeql.yaml@5f6990aa467ae0a6b62c91ad0502e3e1a53117ce
     with:
-      repository-name: lirem/jellyfin-plugin-progress-sync
+      repository-name: liamfo993/jellyfin-plugin-progress-sync

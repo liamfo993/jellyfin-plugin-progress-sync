@@ -11,7 +11,7 @@
    - attaches the zip to the release;
    - adds the version to `manifest.json` on `main`.
 4. Check that
-   `https://raw.githubusercontent.com/lirem/jellyfin-plugin-progress-sync/main/manifest.json`
+   `https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/manifest.json`
    lists the new version. Servers that added the repository then see the update in their catalog.
 
 If `main` is protected, allow GitHub Actions to push to it, or the manifest step fails.
@@ -26,11 +26,11 @@ open a pull request to [jellyfin/jellyfin.org](https://github.com/jellyfin/jelly
 
   ```ts
   {
-    id: 'gh:lirem/jellyfin-plugin-progress-sync',
-    name: "lirem's Repo",
-    url: 'https://raw.githubusercontent.com/lirem/jellyfin-plugin-progress-sync/main/manifest.json',
+    id: 'gh:liamfo993/jellyfin-plugin-progress-sync',
+    name: "liamfo993's Repo",
+    url: 'https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/manifest.json',
     includes: {
-      'Progress Sync': 'https://github.com/lirem/jellyfin-plugin-progress-sync'
+      'Progress Sync': 'https://github.com/liamfo993/jellyfin-plugin-progress-sync'
     }
   },
   ```

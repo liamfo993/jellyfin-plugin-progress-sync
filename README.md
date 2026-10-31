@@ -2,9 +2,9 @@
 
 Copy or sync watch progress between users on the same Jellyfin server.
 
-[![Release](https://img.shields.io/github/v/release/lirem/jellyfin-plugin-progress-sync)](https://github.com/lirem/jellyfin-plugin-progress-sync/releases)
+[![Release](https://img.shields.io/github/v/release/liamfo993/jellyfin-plugin-progress-sync)](https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases)
 [![Jellyfin](https://img.shields.io/badge/Jellyfin-12.1%2B-AA5CC3)](https://jellyfin.org)
-[![License](https://img.shields.io/github/license/lirem/jellyfin-plugin-progress-sync)](LICENSE)
+[![License](https://img.shields.io/github/license/liamfo993/jellyfin-plugin-progress-sync)](LICENSE)
 
 ![The Sync progress dialog on a series page](docs/images/dialog.png)
 
@@ -95,7 +95,7 @@ server log.
   is inactive, install or enable File Transformation and restart Jellyfin. Then reload the browser
   once with Ctrl+Shift+R (Cmd+Shift+R on macOS).
 - **An action fails:** look for `Progress Sync` lines in the Jellyfin log and
-  [open an issue](https://github.com/lirem/jellyfin-plugin-progress-sync/issues).
+  [open an issue](https://github.com/liamfo993/jellyfin-plugin-progress-sync/issues).
 
 ## Building
 
