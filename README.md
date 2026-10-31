@@ -35,7 +35,7 @@ Favorites, ratings and audio/subtitle choices are left alone.
    **Progress Sync**
 
    ```
-   https://raw.githubusercontent.com/lirem/jellyfin-plugin-progress-sync/main/manifest.json
+   https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/manifest.json
    ```
 
 2. Install **File Transformation** and **Progress Sync** from the catalog.
