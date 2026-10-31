@@ -7,6 +7,8 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,6 +21,7 @@ public sealed class LinkSyncServiceTests : IDisposable
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "ps-tests-" + Guid.NewGuid().ToString("N"));
     private readonly FakeServer _server = new();
     private readonly LinkStore _store;
+    private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -29,12 +32,14 @@ public sealed class LinkSyncServiceTests : IDisposable
     public LinkSyncServiceTests()
     {
         _store = new LinkStore(Path.Combine(_dir, "links.json"), NullLogger<LinkStore>.Instance);
+        _globalSettings = new GlobalSyncSettingsStore(Path.Combine(_dir, "global-settings.json"));
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         var service = new LinkSyncService(
             _server.UserData.Object,
             _server.Users.Object,
             _server.Library.Object,
             _store,
+            _globalSettings,
             _copier,
             NullLogger<LinkSyncService>.Instance);
         service.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -162,5 +167,30 @@ public sealed class LinkSyncServiceTests : IDisposable
         Assert.Equal(700, Ticks(_carol));
         Assert.Equal(0, SavesFor(_alice));
         Assert.Null(PropagationContext.Current);
+    }
+
+    [Fact]
+    public void GlobalMirror_SyncsSelectedMediaBothWays()
+    {
+        _globalSettings.Save(new GlobalSyncSettings
+        {
+            UserAId = _alice.Id,
+            UserBId = _bob.Id,
+            Movies = true,
+            Series = true,
+            Music = true
+        });
+        var movie = _server.AddItem(new Movie { Id = Guid.NewGuid() });
+        var audio = _server.AddItem(new Audio { Id = Guid.NewGuid() });
+
+        Watch(_alice, 100, item: _episode);
+        Watch(_bob, 200, item: movie);
+        Watch(_alice, 300, item: audio);
+        Watch(_carol, 400, item: audio);
+
+        Assert.Equal(100, _server.Get(_bob.Id, _episode.Id).PlaybackPositionTicks);
+        Assert.Equal(200, _server.Get(_alice.Id, movie.Id).PlaybackPositionTicks);
+        Assert.Equal(300, _server.Get(_bob.Id, audio.Id).PlaybackPositionTicks);
+        Assert.Equal(300, _server.Get(_alice.Id, audio.Id).PlaybackPositionTicks);
     }
 }

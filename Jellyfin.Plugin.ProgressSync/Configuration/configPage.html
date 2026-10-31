@@ -10,10 +10,39 @@
             <div class="content-primary">
                 <h2 class="sectionTitle">Progress Sync</h2>
                 <p class="fieldDescription">
-                    Users copy or link watch progress from the "Sync progress" button on movie, series, season and episode pages.
-                    Links are managed by users in that dialog; this page is read-only.
+                    Manage server-wide two-way progress sync and review links created by users.
                 </p>
                 <div id="psFtStatus" style="margin: 1em 0;"></div>
+                <h3 class="sectionTitle">Global sync</h3>
+                <p class="fieldDescription">
+                    Global sync applies to progress changes after saving. Existing progress is not overwritten.
+                </p>
+                <form id="psGlobalForm">
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psUserA">User A</label>
+                        <select id="psUserA" class="emby-select"></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psUserB">User B</label>
+                        <select id="psUserB" class="emby-select"></select>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label><input id="psSeries" type="checkbox" is="emby-checkbox"><span>Series</span></label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>Everything</span></label>
+                    </div>
+                    <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
+                        <span>Save global settings</span>
+                    </button>
+                    <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
+                </form>
                 <h3 class="sectionTitle">Links</h3>
                 <table class="detailTable" style="width: 100%;">
                     <thead>
@@ -33,6 +62,39 @@
             (function () {
                 var FT_REPO = 'https://www.iamparadox.dev/jellyfin/plugins/manifest.json';
                 var page = document.querySelector('#progressSyncConfigPage');
+                var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
+
+                function loadGlobalSettings(data) {
+                    var userA = page.querySelector('#psUserA');
+                    var userB = page.querySelector('#psUserB');
+                    [userA, userB].forEach(function (select) {
+                        select.innerHTML = '';
+                        var empty = document.createElement('option');
+                        empty.value = '';
+                        empty.textContent = 'Not selected';
+                        select.appendChild(empty);
+                        data.Users.forEach(function (user) {
+                            var option = document.createElement('option');
+                            option.value = user.Id;
+                            option.textContent = user.Name;
+                            select.appendChild(option);
+                        });
+                    });
+
+                    userA.value = data.Settings.UserAId || '';
+                    userB.value = data.Settings.UserBId || '';
+                    page.querySelector('#psMovies').checked = data.Settings.Movies;
+                    page.querySelector('#psSeries').checked = data.Settings.Series;
+                    page.querySelector('#psMusic').checked = data.Settings.Music;
+                    updateEverything();
+                }
+
+                function updateEverything() {
+                    var options = mediaOptions.map(function (id) { return page.querySelector('#' + id); });
+                    var everything = page.querySelector('#psEverything');
+                    everything.checked = options.every(function (option) { return option.checked; });
+                    everything.indeterminate = !everything.checked && options.some(function (option) { return option.checked; });
+                }
 
                 function cell(row, text) {
                     var td = document.createElement('td');
@@ -80,11 +142,55 @@
                     });
                 }
 
+                mediaOptions.forEach(function (id) {
+                    page.querySelector('#' + id).addEventListener('change', updateEverything);
+                });
+
+                page.querySelector('#psEverything').addEventListener('change', function () {
+                    mediaOptions.forEach(function (id) {
+                        page.querySelector('#' + id).checked = this.checked;
+                    }, this);
+                    this.indeterminate = false;
+                });
+
+                page.querySelector('#psGlobalForm').addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var button = page.querySelector('#psSaveGlobal');
+                    var status = page.querySelector('#psGlobalStatus');
+                    var settings = {
+                        UserAId: page.querySelector('#psUserA').value || '00000000-0000-0000-0000-000000000000',
+                        UserBId: page.querySelector('#psUserB').value || '00000000-0000-0000-0000-000000000000',
+                        Movies: page.querySelector('#psMovies').checked,
+                        Series: page.querySelector('#psSeries').checked,
+                        Music: page.querySelector('#psMusic').checked
+                    };
+                    button.disabled = true;
+                    status.textContent = 'Saving...';
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'),
+                        data: JSON.stringify(settings),
+                        contentType: 'application/json'
+                    }).then(function () {
+                        status.textContent = 'Global sync settings saved.';
+                    }, function (err) {
+                        status.textContent = 'Could not save global settings ('
+                            + (err && err.status ? 'HTTP ' + err.status : 'network error') + ').';
+                    }).finally(function () {
+                        button.disabled = false;
+                    });
+                });
+
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
-                    ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')).then(function (overview) {
+                    Promise.all([
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')),
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'))
+                    ]).then(function (results) {
+                        var overview = results[0];
                         renderStatus(overview);
                         renderLinks(overview.Links);
+                        loadGlobalSettings(results[1]);
                     }, function (err) {
                         page.querySelector('#psFtStatus').textContent = 'Could not load status (' + (err && err.status ? 'HTTP ' + err.status : 'network error') + ').';
                     }).finally(function () {

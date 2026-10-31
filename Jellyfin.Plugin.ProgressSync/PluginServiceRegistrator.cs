@@ -14,6 +14,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<LinkStore>();
+        serviceCollection.AddSingleton<GlobalSyncSettingsStore>();
         serviceCollection.AddSingleton<ProgressCopier>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddHostedService<LinkSyncService>();

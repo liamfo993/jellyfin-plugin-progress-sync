@@ -8,6 +8,7 @@ using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -35,6 +36,7 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly IUserManager _userManager;
     private readonly ProgressCopier _copier;
     private readonly LinkStore _store;
+    private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly WebInjectionStatus _injectionStatus;
     private readonly ILogger<ProgressSyncController> _logger;
 
@@ -45,6 +47,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
     /// <param name="copier">The progress copier.</param>
     /// <param name="store">The link store.</param>
+    /// <param name="globalSettings">The global sync settings store.</param>
     /// <param name="injectionStatus">The web client integration status.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{ProgressSyncController}"/> interface.</param>
     public ProgressSyncController(
@@ -52,6 +55,7 @@ public sealed class ProgressSyncController : ControllerBase
         IUserManager userManager,
         ProgressCopier copier,
         LinkStore store,
+        GlobalSyncSettingsStore globalSettings,
         WebInjectionStatus injectionStatus,
         ILogger<ProgressSyncController> logger)
     {
@@ -59,6 +63,7 @@ public sealed class ProgressSyncController : ControllerBase
         _userManager = userManager;
         _copier = copier;
         _store = store;
+        _globalSettings = globalSettings;
         _injectionStatus = injectionStatus;
         _logger = logger;
     }
@@ -303,7 +308,61 @@ public sealed class ProgressSyncController : ControllerBase
         return new AdminOverviewDto(_injectionStatus.State, _injectionStatus.Message, links);
     }
 
-    private static bool IsSupported(BaseItem item) => item is Movie or Episode or Season or Series;
+    /// <summary>
+    /// Gets the global sync settings and enabled user options for the admin page.
+    /// </summary>
+    /// <returns>Current settings and enabled users.</returns>
+    [HttpGet("Admin/GlobalSettings")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<GlobalSyncSettingsResponse> GetGlobalSyncSettings()
+    {
+        var users = _userManager.GetUsers()
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .Select(user => new AdminUserDto(user.Id, user.Username))
+            .OrderBy(user => user.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new GlobalSyncSettingsResponse(_globalSettings.Current, users);
+    }
+
+    /// <summary>
+    /// Saves the global two-way sync settings.
+    /// </summary>
+    /// <param name="settings">The user pair and selected media scopes.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/GlobalSettings")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateGlobalSyncSettings([FromBody] GlobalSyncSettings? settings)
+    {
+        if (settings is null)
+        {
+            return BadRequest("Settings are required.");
+        }
+
+        var noUsersSelected = settings.UserAId == Guid.Empty && settings.UserBId == Guid.Empty;
+        if (noUsersSelected && !settings.Movies && !settings.Series && !settings.Music)
+        {
+            _globalSettings.Save(new GlobalSyncSettings());
+            return NoContent();
+        }
+
+        if (settings.UserAId == Guid.Empty
+            || settings.UserBId == Guid.Empty
+            || settings.UserAId == settings.UserBId
+            || GetEnabledUser(settings.UserAId) is null
+            || GetEnabledUser(settings.UserBId) is null)
+        {
+            return BadRequest("Select two different enabled users.");
+        }
+
+        _globalSettings.Save(settings);
+        return NoContent();
+    }
+
+    private static bool IsSupported(BaseItem item) => item is Audio or Movie or Episode or Season or Series;
 
     private User? GetCurrentUser()
     {

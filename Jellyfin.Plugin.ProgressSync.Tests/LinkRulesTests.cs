@@ -3,6 +3,7 @@ using System.Linq;
 using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using Xunit;
@@ -85,5 +86,13 @@ public class LinkRulesTests
         Assert.Equal(movie.Id, LinkRules.ResolveRoot(movie));
         Assert.Equal(primaryId, LinkRules.ResolveRoot(alternate));
         Assert.Null(LinkRules.ResolveRoot(new Folder { Id = Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public void ResolveRoot_AudioUsesTrackId()
+    {
+        var audio = new Audio { Id = Guid.NewGuid() };
+
+        Assert.Equal(audio.Id, LinkRules.ResolveRoot(audio));
     }
 }

@@ -22,6 +22,7 @@ the target. `Likes` is never assigned, because its setter overwrites `Rating`.
 
 - **Scope.** Movie or episode: the item and all its versions. Season or series: its episodes from
   `Season/Series.GetEpisodes(user, …)`, enumerated as the target user. Missing episodes are skipped.
+- **Audio.** A music track is copied as a single playable item.
 - **Access.** Every item is re-resolved with `ILibraryManager.GetItemById(id, user)` for both users,
   which applies library access and parental rules (`BaseItem.IsVisible` only checks parental
   rules). Items the source can't see are skipped, not reset.
@@ -41,7 +42,7 @@ series for episodes, seasons and series, and the primary version for movies.
 
 Creating a link first copies the partner's progress for the whole root to the creator.
 
-`LinkSyncService` subscribes to `IUserDataManager.UserDataSaved`. For an episode or movie save it
+`LinkSyncService` subscribes to `IUserDataManager.UserDataSaved`. For an episode, movie, or audio save it
 looks up links on the item's root and copies the saved data to every user reachable from the saving
 user. The server raises the event synchronously on the saving thread, so the plugin's own writes
 re-enter the handler on the same thread. A `[ThreadStatic]` set of users already written stops
@@ -89,5 +90,7 @@ target user.
 | `DELETE /Links/{linkId}` | user | Remove a link the caller may remove (404 otherwise) |
 | `GET /ClientScript` | anonymous | The web client script |
 | `GET /Admin/Overview` | admin | Integration status and all links, for the dashboard page |
+| `GET /Admin/GlobalSettings` | admin | Current global settings and enabled user options |
+| `POST /Admin/GlobalSettings` | admin | Save the global user pair and media scopes |
 
 Requests without a user (such as API keys) get 403 on user routes.

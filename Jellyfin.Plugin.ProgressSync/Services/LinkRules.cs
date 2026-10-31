@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Jellyfin.Plugin.ProgressSync.Models;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 
@@ -68,6 +69,7 @@ internal static class LinkRules
             Season season => NonEmpty(season.SeriesId),
             Series series => series.Id,
             Movie movie => NonEmpty(movie.PrimaryVersionId) ?? movie.Id,
+            Audio audio => audio.Id,
             _ => null
         };
     }

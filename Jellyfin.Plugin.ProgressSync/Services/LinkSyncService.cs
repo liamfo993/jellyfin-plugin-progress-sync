@@ -4,7 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Enums;
+using Jellyfin.Plugin.ProgressSync.Models;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -23,6 +25,7 @@ public sealed class LinkSyncService : IHostedService
     private readonly IUserManager _userManager;
     private readonly ILibraryManager _libraryManager;
     private readonly LinkStore _store;
+    private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ProgressCopier _copier;
     private readonly ILogger<LinkSyncService> _logger;
 
@@ -33,6 +36,7 @@ public sealed class LinkSyncService : IHostedService
     /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="store">The link store.</param>
+    /// <param name="globalSettings">The global sync settings.</param>
     /// <param name="copier">The progress copier.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{LinkSyncService}"/> interface.</param>
     public LinkSyncService(
@@ -40,6 +44,7 @@ public sealed class LinkSyncService : IHostedService
         IUserManager userManager,
         ILibraryManager libraryManager,
         LinkStore store,
+        GlobalSyncSettingsStore globalSettings,
         ProgressCopier copier,
         ILogger<LinkSyncService> logger)
     {
@@ -47,6 +52,7 @@ public sealed class LinkSyncService : IHostedService
         _userManager = userManager;
         _libraryManager = libraryManager;
         _store = store;
+        _globalSettings = globalSettings;
         _copier = copier;
         _logger = logger;
     }
@@ -76,13 +82,14 @@ public sealed class LinkSyncService : IHostedService
                 return;
             }
 
-            if (e.Item is not (Episode or Movie) || LinkRules.ResolveRoot(e.Item) is not { } rootId)
+            if (e.Item is not (Episode or Movie or Audio) || LinkRules.ResolveRoot(e.Item) is not { } rootId)
             {
                 return;
             }
 
             var links = _store.Snapshot.ForRoot(rootId);
-            if (links.Count == 0)
+            var globalTargets = _globalSettings.Current.TargetsOf(e.UserId, e.Item);
+            if (links.Count == 0 && globalTargets.Length == 0)
             {
                 return;
             }
@@ -94,6 +101,7 @@ public sealed class LinkSyncService : IHostedService
             var context = active ?? owned!;
 
             var targets = LinkRules.TargetsOf(links, e.UserId)
+                .Concat(globalTargets)
                 .Where(t => !context.Reached.Contains(t))
                 .Distinct()
                 .ToList();

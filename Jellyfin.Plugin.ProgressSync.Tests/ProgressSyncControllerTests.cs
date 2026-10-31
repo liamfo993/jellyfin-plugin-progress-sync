@@ -24,6 +24,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "ps-tests-" + Guid.NewGuid().ToString("N"));
     private readonly FakeServer _server = new();
     private readonly LinkStore _store;
+    private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -34,6 +35,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     public ProgressSyncControllerTests()
     {
         _store = new LinkStore(Path.Combine(_dir, "links.json"), NullLogger<LinkStore>.Instance);
+        _globalSettings = new GlobalSyncSettingsStore(Path.Combine(_dir, "global-settings.json"));
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         _alice = _server.AddUser("alice");
         _bob = _server.AddUser("bob");
@@ -57,6 +59,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
             _server.Users.Object,
             _copier,
             _store,
+            _globalSettings,
             new WebInjectionStatus(),
             NullLogger<ProgressSyncController>.Instance);
         var claimValue = rawClaim ?? caller?.Id.ToString("N");
@@ -164,5 +167,34 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.False(alicesView.IsCreator);
         Assert.Equal(204, Status(As(_alice).DeleteLink(link.Id)));
         Assert.Empty(_store.Snapshot.All);
+    }
+
+    [Fact]
+    public void GlobalSettings_RequireDifferentEnabledUsers_AndPersistSelectedScopes()
+    {
+        var controller = As(_alice);
+
+        Assert.Equal(400, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings
+        {
+            UserAId = _alice.Id,
+            UserBId = _alice.Id,
+            Movies = true
+        })));
+
+        Assert.Equal(204, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings
+        {
+            UserAId = _alice.Id,
+            UserBId = _bob.Id,
+            Movies = true,
+            Music = true
+        })));
+
+        var settings = controller.GetGlobalSyncSettings().Value!;
+        Assert.Equal(_alice.Id, settings.Settings.UserAId);
+        Assert.Equal(_bob.Id, settings.Settings.UserBId);
+        Assert.True(settings.Settings.Movies);
+        Assert.False(settings.Settings.Series);
+        Assert.True(settings.Settings.Music);
+        Assert.Equal(2, settings.Users.Count);
     }
 }

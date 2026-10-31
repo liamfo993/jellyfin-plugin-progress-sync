@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -90,5 +91,14 @@ public class ProgressCopierTests
         var item = Assert.Single(scope.Items);
         Assert.Same(cachedVisible, item);
         Assert.Equal(2, scope.Skipped);
+    }
+
+    [Fact]
+    public void EnumerateLeaves_AudioReturnsTheTrack()
+    {
+        var target = _server.AddUser("bob");
+        var audio = new Audio { Id = Guid.NewGuid() };
+
+        Assert.Same(audio, Assert.Single(ProgressCopier.EnumerateLeaves(audio, target)));
     }
 }

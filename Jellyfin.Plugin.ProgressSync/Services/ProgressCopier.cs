@@ -6,6 +6,7 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Models;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -42,7 +43,7 @@ public sealed class ProgressCopier
     /// </summary>
     /// <param name="source">The user to copy from.</param>
     /// <param name="target">The user to copy to.</param>
-    /// <param name="opened">A movie, episode, season or series.</param>
+    /// <param name="opened">A movie, audio track, episode, season or series.</param>
     /// <param name="reason">The save reason reported to the server.</param>
     /// <returns>The copy result.</returns>
     public CopyResult CopyScope(User source, User target, BaseItem opened, UserDataSaveReason reason)
@@ -73,12 +74,13 @@ public sealed class ProgressCopier
     /// </summary>
     /// <param name="opened">A movie, episode, season or series.</param>
     /// <param name="target">The user whose library view is used.</param>
-    /// <returns>Distinct, non-virtual video items.</returns>
+    /// <returns>Distinct, non-virtual playable items.</returns>
     /// <exception cref="ArgumentException">The item type is not supported.</exception>
     internal static IReadOnlyList<BaseItem> EnumerateLeaves(BaseItem opened, User target)
     {
-        IEnumerable<Video> leaves = opened switch
+        IEnumerable<BaseItem> leaves = opened switch
         {
+            Audio audio => [audio],
             Movie movie => movie.GetAllVersions(),
             Episode episode => episode.GetAllVersions(),
             Season season => season.GetEpisodes(target, new DtoOptions(true), false)
