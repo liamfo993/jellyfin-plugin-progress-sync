@@ -6,21 +6,33 @@
     <style>
         #progressSyncConfigPage button,
         #progressSyncConfigPage .emby-button {
+            background: #2196f3 !important;
             background-color: #2196f3 !important;
-            border-color: #2196f3 !important;
+            background-image: none !important;
+            border-color: #1976d2 !important;
             color: #000 !important;
+            --button-background: #2196f3;
+            --button-background-hover: #42a5f5;
+            --button-foreground: #000;
         }
 
         #progressSyncConfigPage button:hover,
         #progressSyncConfigPage .emby-button:hover {
+            background: #42a5f5 !important;
             background-color: #42a5f5 !important;
-            border-color: #42a5f5 !important;
+            border-color: #1976d2 !important;
             color: #000 !important;
         }
 
         #progressSyncConfigPage button:disabled,
         #progressSyncConfigPage .emby-button:disabled {
-            opacity: 0.6;
+            background: #2196f3 !important;
+            color: #000 !important;
+        }
+
+        #progressSyncConfigPage .emby-button > span,
+        #progressSyncConfigPage button > span {
+            color: #000 !important;
         }
     </style>
 </head>
@@ -30,7 +42,7 @@
             <div class="content-primary">
                 <h2 class="sectionTitle">Progress Sync</h2>
                 <p class="fieldDescription">
-                    Manage server-wide two-way progress sync and review links created by users.
+                    Manage server-wide one-way or two-way progress sync and review active syncs.
                 </p>
                 <div id="psFtStatus" style="margin: 1em 0;"></div>
                 <h3 class="sectionTitle">Copy or sync two users</h3>
@@ -74,7 +86,7 @@
                     <div id="psSetupStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
                 </form>
                 <h3 class="sectionTitle">Active continuous syncs</h3>
-                <p class="fieldDescription">Deactivate any link here to stop future automatic progress updates.</p>
+                <p class="fieldDescription">Item links and global profiles are listed here. Deactivate any row to stop its future automatic progress updates.</p>
                 <table class="detailTable" style="width: 100%;">
                     <thead>
                         <tr>
@@ -87,20 +99,27 @@
                     </thead>
                     <tbody id="psLinks"></tbody>
                 </table>
-                <h3 class="sectionTitle">Global two-way sync</h3>
+                <h3 class="sectionTitle">Global continuous sync profiles</h3>
                 <p class="fieldDescription">
-                    Keep the selected users' progress synchronized for every selected media type.
-                    This applies to future progress changes; existing progress is not copied when saving.
+                    Add one or more profiles, each with its own users, direction, and media types.
+                    Global profiles sync future progress changes and do not copy existing progress.
+                    They appear alongside item-specific links in the active continuous syncs list above.
                 </p>
-                <div id="psGlobalActiveStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
                 <form id="psGlobalForm">
                     <div class="selectContainer">
-                        <label class="selectLabel" for="psUserA">User A</label>
-                        <select id="psUserA" is="emby-select" class="emby-select"></select>
+                        <label class="selectLabel" for="psGlobalSourceUser">Global source user</label>
+                        <select id="psGlobalSourceUser" is="emby-select" class="emby-select" required></select>
                     </div>
                     <div class="selectContainer">
-                        <label class="selectLabel" for="psUserB">User B</label>
-                        <select id="psUserB" is="emby-select" class="emby-select"></select>
+                        <label class="selectLabel" for="psGlobalTargetUser">Global target user</label>
+                        <select id="psGlobalTargetUser" is="emby-select" class="emby-select" required></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="psGlobalMode">Sync direction</label>
+                        <select id="psGlobalMode" is="emby-select" class="emby-select">
+                            <option value="Follow">Continuous one-way (source to target)</option>
+                            <option value="Mirror">Continuous two-way</option>
+                        </select>
                     </div>
                     <div class="checkboxContainer">
                         <label><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
@@ -115,10 +134,7 @@
                         <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>Everything</span></label>
                     </div>
                     <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
-                        <span>Save global settings</span>
-                    </button>
-                    <button id="psDeactivateGlobal" type="button" class="emby-button" disabled>
-                        <span>Deactivate global sync</span>
+                        <span>Add global profile</span>
                     </button>
                     <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
                 </form>
@@ -130,47 +146,37 @@
                 var page = document.querySelector('#progressSyncConfigPage');
                 var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
                 var globalUsers = [];
+                var globalSettings = null;
 
-                function renderGlobalActiveStatus(settings) {
-                    var status = page.querySelector('#psGlobalActiveStatus');
-                    var deactivate = page.querySelector('#psDeactivateGlobal');
-                    var active = settings.UserAId && settings.UserBId
-                        && settings.UserAId !== settings.UserBId
-                        && (settings.Movies || settings.Series || settings.Music);
-                    deactivate.disabled = !active;
-                    if (!active) {
-                        status.textContent = 'INACTIVE — no global sync is running.';
-                        return;
-                    }
-
-                    var userA = globalUsers.find(function (user) { return user.Id === settings.UserAId; });
-                    var userB = globalUsers.find(function (user) { return user.Id === settings.UserBId; });
-                    var scopes = [];
-                    if (settings.Movies) {
-                        scopes.push('all movies');
-                    }
-                    if (settings.Series) {
-                        scopes.push('all series');
-                    }
-                    if (settings.Music) {
-                        scopes.push('all music');
-                    }
-                    status.textContent = 'ACTIVE — two-way sync between '
-                        + (userA ? userA.Name : 'selected user') + ' and '
-                        + (userB ? userB.Name : 'selected user') + ' for ' + scopes.join(', ') + '.';
+                function applyButtonColors(button) {
+                    button.style.setProperty('background', '#2196f3', 'important');
+                    button.style.setProperty('background-color', '#2196f3', 'important');
+                    button.style.setProperty('background-image', 'none', 'important');
+                    button.style.setProperty('border-color', '#1976d2', 'important');
+                    button.style.setProperty('color', '#000', 'important');
+                    button.querySelectorAll('span').forEach(function (span) {
+                        span.style.setProperty('color', '#000', 'important');
+                    });
                 }
+
+                page.querySelectorAll('button').forEach(applyButtonColors);
 
                 function loadGlobalSettings(data) {
                     globalUsers = data.Users;
-                    var selects = ['#psUserA', '#psUserB', '#psSourceUser', '#psTargetUser'];
+                    globalSettings = data.Settings;
+                    var selects = [
+                        '#psSourceUser',
+                        '#psTargetUser',
+                        '#psGlobalSourceUser',
+                        '#psGlobalTargetUser'
+                    ];
                     selects.forEach(function (selector) {
                         var select = page.querySelector(selector);
+                        var selectedUserId = select.value;
                         select.innerHTML = '';
                         var empty = document.createElement('option');
                         empty.value = '';
-                        empty.textContent = selector === '#psUserA' || selector === '#psUserB'
-                            ? 'Not selected'
-                            : 'Select a user';
+                        empty.textContent = 'Select a user';
                         select.appendChild(empty);
                         data.Users.forEach(function (user) {
                             var option = document.createElement('option');
@@ -178,17 +184,8 @@
                             option.textContent = user.Name;
                             select.appendChild(option);
                         });
+                        select.value = selectedUserId;
                     });
-
-                    var userA = page.querySelector('#psUserA');
-                    var userB = page.querySelector('#psUserB');
-                    userA.value = data.Settings.UserAId || '';
-                    userB.value = data.Settings.UserBId || '';
-                    page.querySelector('#psMovies').checked = data.Settings.Movies;
-                    page.querySelector('#psSeries').checked = data.Settings.Series;
-                    page.querySelector('#psMusic').checked = data.Settings.Music;
-                    updateEverything();
-                    renderGlobalActiveStatus(data.Settings);
                 }
 
                 function updateEverything() {
@@ -226,14 +223,18 @@
 
                 function renderLinks(links) {
                     var body = page.querySelector('#psLinks');
+                    var profiles = globalSettings ? globalSettings.Profiles.filter(function (profile) {
+                        return profile.IsActive;
+                    }) : [];
                     body.innerHTML = '';
-                    if (links.length === 0) {
+                    if (links.length === 0 && profiles.length === 0) {
                         var empty = document.createElement('tr');
                         var emptyCell = cell(empty, 'No active continuous syncs.');
                         emptyCell.colSpan = 5;
                         body.appendChild(empty);
                         return;
                     }
+
                     links.forEach(function (link) {
                         var row = document.createElement('tr');
                         row.className = 'detailTableBodyRow';
@@ -250,8 +251,52 @@
                         button.type = 'button';
                         button.className = 'emby-button';
                         button.textContent = 'Deactivate';
+                        applyButtonColors(button);
                         button.addEventListener('click', function () {
                             deactivateLink(link, button);
+                        });
+                        actionCell.appendChild(button);
+                        row.appendChild(actionCell);
+                        body.appendChild(row);
+                    });
+
+                    profiles.forEach(function (profile) {
+                        var row = document.createElement('tr');
+                        row.className = 'detailTableBodyRow';
+                        var scopes = [];
+                        if (profile.Movies) {
+                            scopes.push('movies');
+                        }
+                        if (profile.Series) {
+                            scopes.push('series');
+                        }
+                        if (profile.Music) {
+                            scopes.push('music');
+                        }
+                        var source = globalUsers.find(function (user) {
+                            return user.Id === profile.SourceUserId;
+                        });
+                        var target = globalUsers.find(function (user) {
+                            return user.Id === profile.TargetUserId;
+                        });
+                        cell(row, 'Global: all ' + scopes.join(', '));
+                        cell(row, profile.Mode === 'Mirror'
+                            ? (source ? source.Name : '(deleted)') + ' and '
+                                + (target ? target.Name : '(deleted)') + ' (two-way)'
+                            : (source ? source.Name : '(deleted)') + ' to '
+                                + (target ? target.Name : '(deleted)') + ' (one-way)');
+                        cell(row, 'Active');
+                        cell(row, new Date(profile.CreatedUtc).toLocaleString());
+                        var actionCell = document.createElement('td');
+                        actionCell.className = 'detailTableBodyCell';
+                        var button = document.createElement('button');
+                        button.setAttribute('is', 'emby-button');
+                        button.type = 'button';
+                        button.className = 'emby-button';
+                        button.textContent = 'Deactivate';
+                        applyButtonColors(button);
+                        button.addEventListener('click', function () {
+                            deactivateGlobalProfile(profile, button);
                         });
                         actionCell.appendChild(button);
                         row.appendChild(actionCell);
@@ -260,7 +305,12 @@
                 }
 
                 function refreshOverview() {
-                    return ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')).then(function (overview) {
+                    return Promise.all([
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')),
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'))
+                    ]).then(function (results) {
+                        var overview = results[0];
+                        loadGlobalSettings(results[1]);
                         renderStatus(overview);
                         renderLinks(overview.Links);
                     });
@@ -354,6 +404,50 @@
                         await refreshOverview();
                     } catch (err) {
                         status.textContent = 'Continuous sync was deactivated, but the list could not be refreshed ('
+                            + errorText(err) + ').';
+                    }
+                }
+
+                async function deactivateGlobalProfile(profile, button) {
+                    var status = page.querySelector('#psGlobalStatus');
+                    button.disabled = true;
+                    var source = globalUsers.find(function (user) { return user.Id === profile.SourceUserId; });
+                    var target = globalUsers.find(function (user) { return user.Id === profile.TargetUserId; });
+                    var confirmed;
+                    try {
+                        confirmed = await confirmAsync(
+                            'Stop global sync between ' + (source ? source.Name : '(deleted user)')
+                                + ' and ' + (target ? target.Name : '(deleted user)')
+                                + ' for the selected media types?',
+                            'Deactivate global profile'
+                        );
+                    } catch (err) {
+                        status.textContent = 'Could not open confirmation (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!confirmed) {
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = 'Deactivating global profile...';
+                    try {
+                        await ApiClient.ajax({
+                            type: 'DELETE',
+                            url: ApiClient.getUrl('ProgressSync/Admin/GlobalProfiles/' + profile.Id)
+                        });
+                    } catch (err) {
+                        status.textContent = 'Could not deactivate global profile (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = 'Global sync profile deactivated.';
+                    try {
+                        await refreshOverview();
+                    } catch (err) {
+                        status.textContent = 'Global sync profile was deactivated, but the active sync list could not be refreshed ('
                             + errorText(err) + ').';
                     }
                 }
@@ -471,103 +565,61 @@
                     }
                 });
 
-                page.querySelector('#psGlobalForm').addEventListener('submit', function (event) {
+                page.querySelector('#psGlobalForm').addEventListener('submit', async function (event) {
                     event.preventDefault();
                     var button = page.querySelector('#psSaveGlobal');
                     var status = page.querySelector('#psGlobalStatus');
-                    var settings = {
-                        UserAId: page.querySelector('#psUserA').value || '00000000-0000-0000-0000-000000000000',
-                        UserBId: page.querySelector('#psUserB').value || '00000000-0000-0000-0000-000000000000',
+                    var sourceUserId = page.querySelector('#psGlobalSourceUser').value;
+                    var targetUserId = page.querySelector('#psGlobalTargetUser').value;
+                    var profile = {
+                        SourceUserId: sourceUserId,
+                        TargetUserId: targetUserId,
+                        Mode: page.querySelector('#psGlobalMode').value,
                         Movies: page.querySelector('#psMovies').checked,
                         Series: page.querySelector('#psSeries').checked,
                         Music: page.querySelector('#psMusic').checked
                     };
-                    button.disabled = true;
-                    status.textContent = 'Saving...';
-                    ApiClient.ajax({
-                        type: 'POST',
-                        url: ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'),
-                        data: JSON.stringify(settings),
-                        contentType: 'application/json'
-                    }).then(function () {
-                        status.textContent = 'Global sync settings saved.';
-                        renderGlobalActiveStatus(settings);
-                    }, function (err) {
-                        status.textContent = 'Could not save global settings ('
-                            + (err && err.status ? 'HTTP ' + err.status : 'network error') + ').';
-                    }).finally(function () {
-                        button.disabled = false;
-                    });
-                });
-
-                page.querySelector('#psDeactivateGlobal').addEventListener('click', async function () {
-                    var button = this;
-                    var status = page.querySelector('#psGlobalStatus');
-                    var confirmed;
-                    button.disabled = true;
-                    try {
-                        confirmed = await confirmAsync(
-                            'Turn off global two-way sync for all selected media types? Existing links and progress will not be changed.',
-                            'Deactivate global sync'
-                        );
-                    } catch (err) {
-                        status.textContent = 'Could not open confirmation (' + errorText(err) + ').';
-                        button.disabled = false;
+                    if (!sourceUserId || !targetUserId) {
+                        status.textContent = 'Choose a source user and a target user.';
                         return;
                     }
-                    if (!confirmed) {
-                        button.disabled = false;
+                    if (sourceUserId === targetUserId) {
+                        status.textContent = 'Source and target must be different users.';
+                        return;
+                    }
+                    if (!profile.Movies && !profile.Series && !profile.Music) {
+                        status.textContent = 'Choose at least one media type.';
                         return;
                     }
 
-                    status.textContent = 'Deactivating global sync...';
+                    button.disabled = true;
+                    status.textContent = 'Adding global profile...';
                     try {
                         await ApiClient.ajax({
                             type: 'POST',
-                            url: ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'),
-                            data: JSON.stringify({
-                                UserAId: '00000000-0000-0000-0000-000000000000',
-                                UserBId: '00000000-0000-0000-0000-000000000000',
-                                Movies: false,
-                                Series: false,
-                                Music: false
-                            }),
+                            url: ApiClient.getUrl('ProgressSync/Admin/GlobalProfiles'),
+                            data: JSON.stringify(profile),
                             contentType: 'application/json'
                         });
+                        try {
+                            await refreshOverview();
+                            status.textContent = 'Global profile added and shown in Active continuous syncs.';
+                        } catch (err) {
+                            status.textContent = 'Global profile was added, but the active sync list could not be refreshed ('
+                                + errorText(err) + ').';
+                        }
                     } catch (err) {
-                        status.textContent = 'Could not deactivate global sync (' + errorText(err) + ').';
+                        status.textContent = 'Could not add global profile (' + errorText(err) + ').';
+                    } finally {
                         button.disabled = false;
-                        return;
                     }
-
-                    page.querySelector('#psUserA').value = '';
-                    page.querySelector('#psUserB').value = '';
-                    page.querySelector('#psMovies').checked = false;
-                    page.querySelector('#psSeries').checked = false;
-                    page.querySelector('#psMusic').checked = false;
-                    updateEverything();
-                    renderGlobalActiveStatus({
-                        UserAId: '',
-                        UserBId: '',
-                        Movies: false,
-                        Series: false,
-                        Music: false
-                    });
-                    status.textContent = 'Global sync deactivated.';
                 });
 
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
-                    Promise.all([
-                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')),
-                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'))
-                    ]).then(function (results) {
-                        var overview = results[0];
-                        renderStatus(overview);
-                        renderLinks(overview.Links);
-                        loadGlobalSettings(results[1]);
-                    }, function (err) {
-                        page.querySelector('#psFtStatus').textContent = 'Could not load status (' + (err && err.status ? 'HTTP ' + err.status : 'network error') + ').';
+                    refreshOverview().catch(function (err) {
+                        page.querySelector('#psFtStatus').textContent = 'Could not load status ('
+                            + errorText(err) + ').';
                     }).finally(function () {
                         Dashboard.hideLoadingMsg();
                     });

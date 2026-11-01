@@ -269,39 +269,56 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
-    public void GlobalSettings_RequireDifferentEnabledUsers_AndPersistSelectedScopes()
+    public void GlobalProfiles_RequireValidPairAndPersistMultipleSyncModes()
     {
         var controller = As(_alice);
 
-        Assert.Equal(400, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings
+        Assert.Equal(400, Status(controller.CreateGlobalSyncProfile(new GlobalSyncProfile
         {
-            UserAId = _alice.Id,
-            UserBId = _alice.Id,
+            SourceUserId = _alice.Id,
+            TargetUserId = _alice.Id,
             Movies = true
         })));
 
-        Assert.Equal(204, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings
+        Assert.Equal(400, Status(controller.CreateGlobalSyncProfile(new GlobalSyncProfile
         {
-            UserAId = _alice.Id,
-            UserBId = _bob.Id,
+            SourceUserId = _alice.Id,
+            TargetUserId = _bob.Id,
+            Mode = (LinkMode)42,
             Movies = true,
-            Series = true
         })));
 
+        var follow = controller.CreateGlobalSyncProfile(new GlobalSyncProfile
+        {
+            SourceUserId = _alice.Id,
+            TargetUserId = _bob.Id,
+            Mode = LinkMode.Follow,
+            Movies = true
+        }).Value!;
+        var mirror = controller.CreateGlobalSyncProfile(new GlobalSyncProfile
+        {
+            SourceUserId = _alice.Id,
+            TargetUserId = _bob.Id,
+            Mode = LinkMode.Mirror,
+            Series = true
+        }).Value!;
+
         var settings = controller.GetGlobalSyncSettings().Value!;
-        Assert.Equal(_alice.Id, settings.Settings.UserAId);
-        Assert.Equal(_bob.Id, settings.Settings.UserBId);
-        Assert.True(settings.Settings.Movies);
-        Assert.True(settings.Settings.Series);
-        Assert.False(settings.Settings.Music);
+        Assert.Equal(2, settings.Settings.Profiles.Count);
         Assert.True(settings.Settings.IsActive);
         Assert.Equal(2, settings.Users.Count);
+        Assert.Equal(LinkMode.Follow, settings.Settings.Profiles[0].Mode);
+        Assert.Contains(settings.Settings.Profiles, profile => profile.Id == follow.Id && profile.Movies);
+        Assert.Contains(settings.Settings.Profiles, profile => profile.Id == mirror.Id && profile.Series);
 
-        Assert.Equal(204, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings())));
+        Assert.Equal(204, Status(controller.DeleteGlobalSyncProfile(follow.Id)));
 
-        var deactivated = controller.GetGlobalSyncSettings().Value!.Settings;
-        Assert.False(deactivated.IsActive);
-        Assert.False(deactivated.Movies);
-        Assert.False(deactivated.Series);
+        var remaining = controller.GetGlobalSyncSettings().Value!.Settings;
+        Assert.Single(remaining.Profiles);
+        Assert.True(remaining.IsActive);
+        Assert.Equal(404, Status(controller.DeleteGlobalSyncProfile(follow.Id)));
+
+        Assert.Equal(204, Status(controller.DeleteGlobalSyncProfile(mirror.Id)));
+        Assert.False(controller.GetGlobalSyncSettings().Value!.Settings.IsActive);
     }
 }

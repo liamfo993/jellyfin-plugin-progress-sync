@@ -475,9 +475,60 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Saves the global two-way sync settings.
+    /// Adds a global sync profile for one pair of users.
     /// </summary>
-    /// <param name="settings">The user pair and selected media scopes.</param>
+    /// <param name="profile">The pair, sync direction, and media scopes.</param>
+    /// <returns>The created profile.</returns>
+    [HttpPost("Admin/GlobalProfiles")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<GlobalSyncProfile> CreateGlobalSyncProfile([FromBody] GlobalSyncProfile? profile)
+    {
+        if (!IsValidGlobalProfile(profile))
+        {
+            return BadRequest("Select two different enabled users, a valid sync mode, and at least one media type.");
+        }
+
+        var created = profile! with { Id = Guid.NewGuid(), CreatedUtc = DateTime.UtcNow };
+        _globalSettings.AddProfile(created);
+        _logger.LogInformation(
+            "Progress Sync: administrator added global {Mode} profile {ProfileId} from {SourceUserId} to {TargetUserId}",
+            created.Mode,
+            created.Id,
+            created.SourceUserId,
+            created.TargetUserId);
+        return created;
+    }
+
+    /// <summary>
+    /// Removes a global sync profile.
+    /// </summary>
+    /// <param name="profileId">The profile identifier.</param>
+    /// <returns>No content when the profile is removed.</returns>
+    [HttpDelete("Admin/GlobalProfiles/{profileId}")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult DeleteGlobalSyncProfile([FromRoute] Guid profileId)
+    {
+        var profile = _globalSettings.RemoveProfile(profileId);
+        if (profile is null)
+        {
+            return NotFound();
+        }
+
+        _logger.LogInformation(
+            "Progress Sync: administrator deactivated global {Mode} profile {ProfileId}",
+            profile.Mode,
+            profile.Id);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Replaces all global sync profiles.
+    /// </summary>
+    /// <param name="settings">The global sync profiles.</param>
     /// <returns>No content when saved.</returns>
     [HttpPost("Admin/GlobalSettings")]
     [Authorize(Policy = Policies.RequiresElevation)]
@@ -490,24 +541,27 @@ public sealed class ProgressSyncController : ControllerBase
             return BadRequest("Settings are required.");
         }
 
-        var noUsersSelected = settings.UserAId == Guid.Empty && settings.UserBId == Guid.Empty;
-        if (noUsersSelected && !settings.Movies && !settings.Series && !settings.Music)
+        if (settings.Profiles is null
+            || settings.Profiles.Any(profile => profile.Id == Guid.Empty || !IsValidGlobalProfile(profile))
+            || settings.Profiles.Select(profile => profile.Id).Distinct().Count() != settings.Profiles.Count)
         {
-            _globalSettings.Save(new GlobalSyncSettings());
-            return NoContent();
-        }
-
-        if (settings.UserAId == Guid.Empty
-            || settings.UserBId == Guid.Empty
-            || settings.UserAId == settings.UserBId
-            || GetEnabledUser(settings.UserAId) is null
-            || GetEnabledUser(settings.UserBId) is null)
-        {
-            return BadRequest("Select two different enabled users.");
+            return BadRequest("Every profile must have a unique ID, two different enabled users, a valid sync mode, and at least one media type.");
         }
 
         _globalSettings.Save(settings);
         return NoContent();
+    }
+
+    private bool IsValidGlobalProfile(GlobalSyncProfile? profile)
+    {
+        return profile is not null
+            && profile.SourceUserId != Guid.Empty
+            && profile.TargetUserId != Guid.Empty
+            && profile.SourceUserId != profile.TargetUserId
+            && GetEnabledUser(profile.SourceUserId) is not null
+            && GetEnabledUser(profile.TargetUserId) is not null
+            && Enum.IsDefined(profile.Mode)
+            && (profile.Movies || profile.Series || profile.Music);
     }
 
     private static bool IsSupported(BaseItem item) => item is Audio or Movie or Episode or Season or Series;

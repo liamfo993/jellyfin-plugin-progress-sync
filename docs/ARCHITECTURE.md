@@ -95,6 +95,8 @@ settings page and verify that both users can access the selected item before cop
 | `POST /Admin/Sync` | admin | Copy once or create a one-way/two-way continuous link |
 | `DELETE /Admin/Links/{linkId}` | admin | Deactivate any continuous link |
 | `GET /Admin/GlobalSettings` | admin | Current global settings and enabled user options |
-| `POST /Admin/GlobalSettings` | admin | Save the global user pair and media scopes |
+| `POST /Admin/GlobalProfiles` | admin | Add a global one-way or two-way user-pair profile |
+| `DELETE /Admin/GlobalProfiles/{profileId}` | admin | Deactivate one global sync profile |
+| `POST /Admin/GlobalSettings` | admin | Replace all global sync profiles |
 
 Requests without a user (such as API keys) get 403 on user routes.

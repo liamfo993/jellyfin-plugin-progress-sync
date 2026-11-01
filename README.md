@@ -67,11 +67,10 @@ Syncing runs on the server, so progress made in any Jellyfin app is synced. The 
 only in the web client. Admins can also set up one-time copies and continuous links between users,
 see which links are active, and deactivate them under **Dashboard → Plugins → Progress Sync → Settings**.
 
-Admins can also configure one global two-way user pair in plugin settings, selecting movies, series,
-music, or everything. The settings page shows whether this global rule is active and which users and
-media types it covers; **Deactivate global sync** turns the rule off without removing item-specific
-links. Global rules apply to progress changes made after saving; they do not overwrite existing
-progress when enabled.
+Admins can also create multiple global sync profiles, each with its own source and target users,
+one-way or two-way direction, and movie, series, and music scopes. Profiles appear in the active
+continuous sync list and can be deactivated individually. Global profiles apply to future progress
+changes; they do not copy existing progress when created.
 
 ## Privacy
 

@@ -174,11 +174,19 @@ public sealed class LinkSyncServiceTests : IDisposable
     {
         _globalSettings.Save(new GlobalSyncSettings
         {
-            UserAId = _alice.Id,
-            UserBId = _bob.Id,
-            Movies = true,
-            Series = true,
-            Music = true
+            Profiles =
+            [
+                new GlobalSyncProfile
+                {
+                    Id = Guid.NewGuid(),
+                    SourceUserId = _alice.Id,
+                    TargetUserId = _bob.Id,
+                    Mode = LinkMode.Mirror,
+                    Movies = true,
+                    Series = true,
+                    Music = true
+                }
+            ]
         });
         var movie = _server.AddItem(new Movie { Id = Guid.NewGuid() });
         var audio = _server.AddItem(new Audio { Id = Guid.NewGuid() });
@@ -192,5 +200,43 @@ public sealed class LinkSyncServiceTests : IDisposable
         Assert.Equal(200, _server.Get(_alice.Id, movie.Id).PlaybackPositionTicks);
         Assert.Equal(300, _server.Get(_bob.Id, audio.Id).PlaybackPositionTicks);
         Assert.Equal(300, _server.Get(_alice.Id, audio.Id).PlaybackPositionTicks);
+    }
+
+    [Fact]
+    public void GlobalProfiles_SupportMultiplePairsAndOneWayFlow()
+    {
+        var movie = _server.AddItem(new Movie { Id = Guid.NewGuid() });
+        _globalSettings.Save(new GlobalSyncSettings
+        {
+            Profiles =
+            [
+                new GlobalSyncProfile
+                {
+                    Id = Guid.NewGuid(),
+                    SourceUserId = _alice.Id,
+                    TargetUserId = _bob.Id,
+                    Mode = LinkMode.Follow,
+                    Movies = true
+                },
+                new GlobalSyncProfile
+                {
+                    Id = Guid.NewGuid(),
+                    SourceUserId = _bob.Id,
+                    TargetUserId = _carol.Id,
+                    Mode = LinkMode.Mirror,
+                    Series = true
+                }
+            ]
+        });
+
+        Watch(_alice, 100, item: movie);
+        Assert.Equal(100, _server.Get(_bob.Id, movie.Id).PlaybackPositionTicks);
+        Watch(_bob, 200, item: movie);
+        Assert.Equal(100, _server.Get(_alice.Id, movie.Id).PlaybackPositionTicks);
+
+        Watch(_bob, 300);
+        Assert.Equal(300, _server.Get(_carol.Id, _episode.Id).PlaybackPositionTicks);
+        Watch(_carol, 400);
+        Assert.Equal(400, _server.Get(_bob.Id, _episode.Id).PlaybackPositionTicks);
     }
 }
