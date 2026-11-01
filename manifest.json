@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
             {
+                "version": "1.0.3.0",
+                "changelog": "Show and deactivate global two-way sync; improve admin button contrast.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.3.0/progress-sync_1.0.3.0.zip",
+                "checksum": "783c6162733cdedf901eac6afcd62b7d",
+                "timestamp": "2026-11-01T00:12:31Z"
+            },
+            {
                 "version": "1.0.2.0",
                 "changelog": "Add admin setup and deactivation for one-time and continuous sync.",
                 "targetAbi": "12.1.0.0",
