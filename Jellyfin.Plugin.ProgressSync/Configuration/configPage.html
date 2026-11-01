@@ -3,6 +3,26 @@
 <head>
     <meta charset="utf-8">
     <title>Progress Sync</title>
+    <style>
+        #progressSyncConfigPage button,
+        #progressSyncConfigPage .emby-button {
+            background-color: #2196f3 !important;
+            border-color: #2196f3 !important;
+            color: #000 !important;
+        }
+
+        #progressSyncConfigPage button:hover,
+        #progressSyncConfigPage .emby-button:hover {
+            background-color: #42a5f5 !important;
+            border-color: #42a5f5 !important;
+            color: #000 !important;
+        }
+
+        #progressSyncConfigPage button:disabled,
+        #progressSyncConfigPage .emby-button:disabled {
+            opacity: 0.6;
+        }
+    </style>
 </head>
 <body>
     <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
@@ -67,10 +87,12 @@
                     </thead>
                     <tbody id="psLinks"></tbody>
                 </table>
-                <h3 class="sectionTitle">Global sync</h3>
+                <h3 class="sectionTitle">Global two-way sync</h3>
                 <p class="fieldDescription">
-                    Global sync applies to progress changes after saving. Existing progress is not overwritten.
+                    Keep the selected users' progress synchronized for every selected media type.
+                    This applies to future progress changes; existing progress is not copied when saving.
                 </p>
+                <div id="psGlobalActiveStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
                 <form id="psGlobalForm">
                     <div class="selectContainer">
                         <label class="selectLabel" for="psUserA">User A</label>
@@ -95,6 +117,9 @@
                     <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
                         <span>Save global settings</span>
                     </button>
+                    <button id="psDeactivateGlobal" type="button" class="emby-button" disabled>
+                        <span>Deactivate global sync</span>
+                    </button>
                     <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
                 </form>
             </div>
@@ -104,8 +129,39 @@
                 var FT_REPO = 'https://www.iamparadox.dev/jellyfin/plugins/manifest.json';
                 var page = document.querySelector('#progressSyncConfigPage');
                 var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
+                var globalUsers = [];
+
+                function renderGlobalActiveStatus(settings) {
+                    var status = page.querySelector('#psGlobalActiveStatus');
+                    var deactivate = page.querySelector('#psDeactivateGlobal');
+                    var active = settings.UserAId && settings.UserBId
+                        && settings.UserAId !== settings.UserBId
+                        && (settings.Movies || settings.Series || settings.Music);
+                    deactivate.disabled = !active;
+                    if (!active) {
+                        status.textContent = 'INACTIVE — no global sync is running.';
+                        return;
+                    }
+
+                    var userA = globalUsers.find(function (user) { return user.Id === settings.UserAId; });
+                    var userB = globalUsers.find(function (user) { return user.Id === settings.UserBId; });
+                    var scopes = [];
+                    if (settings.Movies) {
+                        scopes.push('all movies');
+                    }
+                    if (settings.Series) {
+                        scopes.push('all series');
+                    }
+                    if (settings.Music) {
+                        scopes.push('all music');
+                    }
+                    status.textContent = 'ACTIVE — two-way sync between '
+                        + (userA ? userA.Name : 'selected user') + ' and '
+                        + (userB ? userB.Name : 'selected user') + ' for ' + scopes.join(', ') + '.';
+                }
 
                 function loadGlobalSettings(data) {
+                    globalUsers = data.Users;
                     var selects = ['#psUserA', '#psUserB', '#psSourceUser', '#psTargetUser'];
                     selects.forEach(function (selector) {
                         var select = page.querySelector(selector);
@@ -132,6 +188,7 @@
                     page.querySelector('#psSeries').checked = data.Settings.Series;
                     page.querySelector('#psMusic').checked = data.Settings.Music;
                     updateEverything();
+                    renderGlobalActiveStatus(data.Settings);
                 }
 
                 function updateEverything() {
@@ -434,12 +491,69 @@
                         contentType: 'application/json'
                     }).then(function () {
                         status.textContent = 'Global sync settings saved.';
+                        renderGlobalActiveStatus(settings);
                     }, function (err) {
                         status.textContent = 'Could not save global settings ('
                             + (err && err.status ? 'HTTP ' + err.status : 'network error') + ').';
                     }).finally(function () {
                         button.disabled = false;
                     });
+                });
+
+                page.querySelector('#psDeactivateGlobal').addEventListener('click', async function () {
+                    var button = this;
+                    var status = page.querySelector('#psGlobalStatus');
+                    var confirmed;
+                    button.disabled = true;
+                    try {
+                        confirmed = await confirmAsync(
+                            'Turn off global two-way sync for all selected media types? Existing links and progress will not be changed.',
+                            'Deactivate global sync'
+                        );
+                    } catch (err) {
+                        status.textContent = 'Could not open confirmation (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!confirmed) {
+                        button.disabled = false;
+                        return;
+                    }
+
+                    status.textContent = 'Deactivating global sync...';
+                    try {
+                        await ApiClient.ajax({
+                            type: 'POST',
+                            url: ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'),
+                            data: JSON.stringify({
+                                UserAId: '00000000-0000-0000-0000-000000000000',
+                                UserBId: '00000000-0000-0000-0000-000000000000',
+                                Movies: false,
+                                Series: false,
+                                Music: false
+                            }),
+                            contentType: 'application/json'
+                        });
+                    } catch (err) {
+                        status.textContent = 'Could not deactivate global sync (' + errorText(err) + ').';
+                        button.disabled = false;
+                        return;
+                    }
+
+                    page.querySelector('#psUserA').value = '';
+                    page.querySelector('#psUserB').value = '';
+                    page.querySelector('#psMovies').checked = false;
+                    page.querySelector('#psSeries').checked = false;
+                    page.querySelector('#psMusic').checked = false;
+                    updateEverything();
+                    renderGlobalActiveStatus({
+                        UserAId: '',
+                        UserBId: '',
+                        Movies: false,
+                        Series: false,
+                        Music: false
+                    });
+                    status.textContent = 'Global sync deactivated.';
                 });
 
                 page.addEventListener('pageshow', function () {

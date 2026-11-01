@@ -285,15 +285,23 @@ public sealed class ProgressSyncControllerTests : IDisposable
             UserAId = _alice.Id,
             UserBId = _bob.Id,
             Movies = true,
-            Music = true
+            Series = true
         })));
 
         var settings = controller.GetGlobalSyncSettings().Value!;
         Assert.Equal(_alice.Id, settings.Settings.UserAId);
         Assert.Equal(_bob.Id, settings.Settings.UserBId);
         Assert.True(settings.Settings.Movies);
-        Assert.False(settings.Settings.Series);
-        Assert.True(settings.Settings.Music);
+        Assert.True(settings.Settings.Series);
+        Assert.False(settings.Settings.Music);
+        Assert.True(settings.Settings.IsActive);
         Assert.Equal(2, settings.Users.Count);
+
+        Assert.Equal(204, Status(controller.UpdateGlobalSyncSettings(new GlobalSyncSettings())));
+
+        var deactivated = controller.GetGlobalSyncSettings().Value!.Settings;
+        Assert.False(deactivated.IsActive);
+        Assert.False(deactivated.Movies);
+        Assert.False(deactivated.Series);
     }
 }

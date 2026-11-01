@@ -68,8 +68,10 @@ only in the web client. Admins can also set up one-time copies and continuous li
 see which links are active, and deactivate them under **Dashboard → Plugins → Progress Sync → Settings**.
 
 Admins can also configure one global two-way user pair in plugin settings, selecting movies, series,
-music, or everything. Global rules apply to progress changes made after saving; they do not overwrite
-existing progress when enabled.
+music, or everything. The settings page shows whether this global rule is active and which users and
+media types it covers; **Deactivate global sync** turns the rule off without removing item-specific
+links. Global rules apply to progress changes made after saving; they do not overwrite existing
+progress when enabled.
 
 ## Privacy
 
