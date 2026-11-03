@@ -29,6 +29,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly FakeServer _server = new();
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
+    private readonly ConcurrentStreamLimitStore _streamLimits;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -41,6 +42,9 @@ public sealed class ProgressSyncControllerTests : IDisposable
     {
         _store = new LinkStore(Path.Combine(_dir, "links.json"), NullLogger<LinkStore>.Instance);
         _globalSettings = new GlobalSyncSettingsStore(Path.Combine(_dir, "global-settings.json"));
+        _streamLimits = new ConcurrentStreamLimitStore(
+            Path.Combine(_dir, "stream-limits.json"),
+            NullLogger<ConcurrentStreamLimitStore>.Instance);
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         _alice = _server.AddUser("alice");
         _bob = _server.AddUser("bob");
@@ -67,6 +71,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
             _copier,
             _store,
             _globalSettings,
+            _streamLimits,
             new WebInjectionStatus(),
             NullLogger<ProgressSyncController>.Instance);
         var claimValue = rawClaim ?? caller?.Id.ToString("N");
@@ -184,6 +189,37 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(_bob.Id, result[1].Id);
         Assert.Equal(charlie.Id, result[2].Id);
         Assert.Equal(403, Status(As(null).GetRecentlyWatchedUsers()));
+    }
+
+    [Fact]
+    public void StreamLimits_AdminCanReadAndReplaceEnabledUsersLimits()
+    {
+        var limits = new[]
+        {
+            new ConcurrentStreamLimit(_alice.Id, 2),
+            new ConcurrentStreamLimit(_bob.Id, 0)
+        };
+
+        Assert.Equal(204, Status(As(_alice).UpdateStreamLimits(limits)));
+
+        var result = As(_alice).GetStreamLimits().Value!;
+        Assert.Equal(2, result.Users.Count);
+        Assert.Equal(_alice.Id, result.Users[0].Id);
+        Assert.Equal(_alice.Id, Assert.Single(result.Limits).UserId);
+        Assert.Equal(2, result.Limits[0].MaxConcurrentStreams);
+        Assert.DoesNotContain(_bob.Id, _streamLimits.Limits.Keys);
+    }
+
+    [Fact]
+    public void UpdateStreamLimits_RejectsInvalidOrDisabledUsers()
+    {
+        Assert.Equal(400, Status(As(_alice).UpdateStreamLimits(null)));
+        Assert.Equal(400, Status(As(_alice).UpdateStreamLimits([new ConcurrentStreamLimit(_alice.Id, 101)])));
+        Assert.Equal(400, Status(As(_alice).UpdateStreamLimits([
+            new ConcurrentStreamLimit(_alice.Id, 2),
+            new ConcurrentStreamLimit(_alice.Id, 3)
+        ])));
+        Assert.Equal(400, Status(As(_alice).UpdateStreamLimits([new ConcurrentStreamLimit(Guid.NewGuid(), 1)])));
     }
 
     [Fact]

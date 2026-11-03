@@ -138,6 +138,26 @@
                     </button>
                     <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
                 </form>
+                <h3 class="sectionTitle">Concurrent playback limits</h3>
+                <p class="fieldDescription">
+                    Set the maximum number of simultaneous playback sessions for each user. When a user starts a stream over their limit,
+                    Progress Sync stops that newly started stream. Set a limit to 0 for no limit.
+                </p>
+                <form id="psStreamLimitsForm">
+                    <table class="detailTable" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th class="detailTableHeaderCell">User</th>
+                                <th class="detailTableHeaderCell">Maximum concurrent streams (0 = unlimited)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="psStreamLimits"></tbody>
+                    </table>
+                    <button id="psSaveStreamLimits" type="submit" class="emby-button button-submit">
+                        <span>Save stream limits</span>
+                    </button>
+                    <div id="psStreamLimitsStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
+                </form>
             </div>
         </div>
         <script type="text/javascript">
@@ -186,6 +206,67 @@
                         });
                         select.value = selectedUserId;
                     });
+                }
+
+                function loadStreamLimits(data) {
+                    var limitsByUser = new Map(data.Limits.map(function (limit) {
+                        return [limit.UserId, limit.MaxConcurrentStreams];
+                    }));
+                    var body = page.querySelector('#psStreamLimits');
+                    body.replaceChildren();
+                    data.Users.forEach(function (user) {
+                        var row = document.createElement('tr');
+                        var name = document.createElement('td');
+                        name.className = 'detailTableBodyCell';
+                        name.textContent = user.Name;
+                        var limitCell = document.createElement('td');
+                        limitCell.className = 'detailTableBodyCell';
+                        var input = document.createElement('input');
+                        input.type = 'number';
+                        input.min = '0';
+                        input.max = '100';
+                        input.step = '1';
+                        input.value = String(limitsByUser.get(user.Id) || 0);
+                        input.dataset.userId = user.Id;
+                        input.className = 'emby-input ps-stream-limit-input';
+                        input.setAttribute('aria-label', 'Maximum concurrent streams for ' + user.Name);
+                        limitCell.appendChild(input);
+                        row.append(name, limitCell);
+                        body.appendChild(row);
+                    });
+                }
+
+                async function saveStreamLimits(event) {
+                    event.preventDefault();
+                    var button = page.querySelector('#psSaveStreamLimits');
+                    var status = page.querySelector('#psStreamLimitsStatus');
+                    var limits = [];
+                    for (var input of page.querySelectorAll('.ps-stream-limit-input')) {
+                        var value = Number(input.value);
+                        if (!Number.isInteger(value) || value < 0 || value > 100) {
+                            status.textContent = 'Enter a whole number between 0 and 100 for every user.';
+                            return;
+                        }
+                        if (value > 0) {
+                            limits.push({ UserId: input.dataset.userId, MaxConcurrentStreams: value });
+                        }
+                    }
+
+                    button.disabled = true;
+                    status.textContent = 'Saving stream limits...';
+                    try {
+                        await ApiClient.ajax({
+                            type: 'POST',
+                            url: ApiClient.getUrl('ProgressSync/Admin/StreamLimits'),
+                            data: JSON.stringify(limits),
+                            contentType: 'application/json'
+                        });
+                        status.textContent = 'Concurrent stream limits saved.';
+                    } catch (err) {
+                        status.textContent = 'Could not save stream limits (' + errorText(err) + ').';
+                    } finally {
+                        button.disabled = false;
+                    }
                 }
 
                 function updateEverything() {
@@ -307,10 +388,12 @@
                 function refreshOverview() {
                     return Promise.all([
                         ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')),
-                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'))
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings')),
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/StreamLimits'))
                     ]).then(function (results) {
                         var overview = results[0];
                         loadGlobalSettings(results[1]);
+                        loadStreamLimits(results[2]);
                         renderStatus(overview);
                         renderLinks(overview.Links);
                     });
@@ -614,6 +697,8 @@
                         button.disabled = false;
                     }
                 });
+
+                page.querySelector('#psStreamLimitsForm').addEventListener('submit', saveStreamLimits);
 
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();

@@ -11,6 +11,8 @@ Copy or sync watch progress between users on the same Jellyfin server.
 Progress Sync adds a sync button to movie, series, season and episode pages in the Jellyfin web
 client, plus a watch history dashboard in the main menu. Use it to take over another user's
 progress once, or to link a title so your progress stays in step as you watch.
+Admins can also set per-user concurrent playback limits; the newest stream or streams are stopped
+when a user exceeds their configured limit.
 
 Only watch progress is copied: resume position, watched state, play count and last played date.
 Favorites, ratings and audio/subtitle choices are left alone.
@@ -81,6 +83,10 @@ Admins can also create multiple global sync profiles, each with its own source a
 one-way or two-way direction, and movie, series, and music scopes. Profiles appear in the active
 continuous sync list and can be deactivated individually. Global profiles apply to future progress
 changes; they do not copy existing progress when created.
+
+Admins can limit concurrent streams per user from **Dashboard → Plugins → Progress Sync → Settings**.
+Set a user's limit to **0** for unlimited streams. When a user starts playback over their limit,
+the newest playback session is stopped and the action is recorded in the Jellyfin log.
 
 ## Privacy
 

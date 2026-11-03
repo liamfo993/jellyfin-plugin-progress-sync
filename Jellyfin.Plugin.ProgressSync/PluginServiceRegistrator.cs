@@ -15,9 +15,11 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.AddSingleton<LinkStore>();
         serviceCollection.AddSingleton<GlobalSyncSettingsStore>();
+        serviceCollection.AddSingleton<ConcurrentStreamLimitStore>();
         serviceCollection.AddSingleton<ProgressCopier>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddHostedService<LinkSyncService>();
+        serviceCollection.AddHostedService<ConcurrentStreamLimitService>();
         serviceCollection.AddHostedService<WebInjectionService>();
     }
 }

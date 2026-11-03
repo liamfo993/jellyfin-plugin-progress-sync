@@ -81,6 +81,12 @@ text. The four history tabs appear before the API requests complete, and complet
 history load independently. The page reloads after a sync change because the details page only
 refreshes part of itself when user data changes.
 
+`ConcurrentStreamLimitService` listens for playback-start events and compares active playback
+sessions against each user's persisted limit. It serializes decisions, stops the newest session or
+sessions with Jellyfin's playstate command until the user is within the limit, and logs enforcement
+results. A zero or missing limit means unlimited. Administrators manage per-user limits from the
+plugin settings page.
+
 ## REST API
 
 All routes start with `/ProgressSync`. User routes act on the caller only; no route accepts a
@@ -106,5 +112,7 @@ settings page and verify that both users can access the selected item before cop
 | `POST /Admin/GlobalProfiles` | admin | Add a global one-way or two-way user-pair profile |
 | `DELETE /Admin/GlobalProfiles/{profileId}` | admin | Deactivate one global sync profile |
 | `POST /Admin/GlobalSettings` | admin | Replace all global sync profiles |
+| `GET /Admin/StreamLimits` | admin | Enabled users and current per-user stream limits |
+| `POST /Admin/StreamLimits` | admin | Replace per-user stream limits (0 means unlimited; maximum is 100) |
 
 Requests without a user (such as API keys) get 403 on user routes.

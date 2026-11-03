@@ -41,6 +41,7 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly ProgressCopier _copier;
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
+    private readonly ConcurrentStreamLimitStore _streamLimits;
     private readonly WebInjectionStatus _injectionStatus;
     private readonly ILogger<ProgressSyncController> _logger;
 
@@ -53,6 +54,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="copier">The progress copier.</param>
     /// <param name="store">The link store.</param>
     /// <param name="globalSettings">The global sync settings store.</param>
+    /// <param name="streamLimits">Per-user concurrent stream limits.</param>
     /// <param name="injectionStatus">The web client integration status.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{ProgressSyncController}"/> interface.</param>
     public ProgressSyncController(
@@ -62,6 +64,7 @@ public sealed class ProgressSyncController : ControllerBase
         ProgressCopier copier,
         LinkStore store,
         GlobalSyncSettingsStore globalSettings,
+        ConcurrentStreamLimitStore streamLimits,
         WebInjectionStatus injectionStatus,
         ILogger<ProgressSyncController> logger)
     {
@@ -71,6 +74,7 @@ public sealed class ProgressSyncController : ControllerBase
         _copier = copier;
         _store = store;
         _globalSettings = globalSettings;
+        _streamLimits = streamLimits;
         _injectionStatus = injectionStatus;
         _logger = logger;
     }
@@ -800,6 +804,62 @@ public sealed class ProgressSyncController : ControllerBase
 
         _globalSettings.Save(settings);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Gets per-user concurrent stream limits.
+    /// </summary>
+    /// <returns>Enabled users and configured stream limits.</returns>
+    [HttpGet("Admin/StreamLimits")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<ConcurrentStreamLimitsResponse> GetStreamLimits()
+    {
+        var users = GetEnabledAdminUsers();
+        return new ConcurrentStreamLimitsResponse(
+            users,
+            _streamLimits.Limits
+                .Select(pair => new ConcurrentStreamLimit(pair.Key, pair.Value))
+                .OrderBy(limit => users.FirstOrDefault(user => user.Id == limit.UserId)?.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList());
+    }
+
+    /// <summary>
+    /// Replaces per-user concurrent stream limits. A limit of zero removes a user's limit.
+    /// </summary>
+    /// <param name="limits">Per-user maximum stream counts.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/StreamLimits")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateStreamLimits([FromBody] ConcurrentStreamLimit[]? limits)
+    {
+        if (limits is null
+            || limits.Any(limit => limit.UserId == Guid.Empty || limit.MaxConcurrentStreams is < 0 or > 100)
+            || limits.Select(limit => limit.UserId).Distinct().Count() != limits.Length)
+        {
+            return BadRequest("Provide unique enabled users and limits from 0 to 100.");
+        }
+
+        var enabledUserIds = GetEnabledAdminUsers().Select(user => user.Id).ToHashSet();
+        if (limits.Any(limit => !enabledUserIds.Contains(limit.UserId)))
+        {
+            return BadRequest("Stream limits can only be set for enabled users.");
+        }
+
+        _streamLimits.Save(limits);
+        _logger.LogInformation("Progress Sync: administrator updated concurrent stream limits for {UserCount} users", limits.Length);
+        return NoContent();
+    }
+
+    private List<AdminUserDto> GetEnabledAdminUsers()
+    {
+        return _userManager.GetUsers()
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .Select(user => new AdminUserDto(user.Id, user.Username))
+            .OrderBy(user => user.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private bool IsValidGlobalProfile(GlobalSyncProfile? profile)

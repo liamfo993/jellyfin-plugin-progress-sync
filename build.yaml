@@ -1,13 +1,14 @@
 name: "Progress Sync"
 guid: "c16569f5-02ed-4d6a-bbdb-649455e512d5"
-version: "1.0.13.0"
+version: "1.0.14.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 owner: "liamfo993"
 overview: "Sync and browse watch history between users"
 description: >
   Adds a "Sync progress" button to movie, series, season and episode pages, watch status on movie
-  and episode pages, and a per-user watch history dashboard in the main menu. Copy another
+  and episode pages, a per-user watch history dashboard in the main menu, and per-user concurrent
+  playback limits. Copy another
   user's resume position and watched state to your account once, or link a movie or series to keep
   it in sync (follow or two-way). Requires the File Transformation plugin.
 category: "General"
@@ -15,4 +16,4 @@ imageUrl: "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-
 artifacts:
   - "Jellyfin.Plugin.ProgressSync.dll"
 changelog: |-
-  Keep history tabs visible when an individual history request fails.
+  Add configurable per-user concurrent playback limits.
