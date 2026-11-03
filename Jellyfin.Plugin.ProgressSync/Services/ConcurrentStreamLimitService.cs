@@ -17,7 +17,7 @@ namespace Jellyfin.Plugin.ProgressSync.Services;
 /// </summary>
 public sealed class ConcurrentStreamLimitService : IHostedService
 {
-    private static readonly TimeSpan StopCommandRetryDelay = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan StopCommandRetryDelay = TimeSpan.FromSeconds(5);
     private readonly ISessionManager _sessionManager;
     private readonly ITranscodeManager _transcodeManager;
     private readonly ConcurrentStreamLimitStore _store;
@@ -149,17 +149,20 @@ public sealed class ConcurrentStreamLimitService : IHostedService
             try
             {
                 await _sessionManager.SendPlaystateCommand(
-                    session.Id,
+                    string.Empty,
                     session.Id,
                     new PlaystateRequest { Command = PlaystateCommand.Stop },
                     CancellationToken.None).ConfigureAwait(false);
 
                 _logger.LogWarning(
-                    "Progress Sync: requested playback stop for {Age} session {SessionId} for user {UserId}; concurrent stream limit is {Limit}",
+                    "Progress Sync: sent playback-stop command for {Age} session {SessionId} for user {UserId}; concurrent stream limit is {Limit}, remote control supported: {SupportsMediaControl}, client: {ClientName}, device: {DeviceName}",
                     stopOldest ? "oldest" : "newest",
                     session.Id,
                     startedSession.UserId,
-                    limit);
+                    limit,
+                    session.SupportsMediaControl,
+                    session.Client,
+                    session.DeviceName);
             }
             catch (Exception ex)
             {

@@ -61,22 +61,22 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         await service.EnforceAsync(existingSession);
 
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            startedSession.Id,
+            string.Empty,
             startedSession.Id,
             It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
             It.IsAny<CancellationToken>()), Times.Once);
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            overLimitSession.Id,
+            string.Empty,
             overLimitSession.Id,
             It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
             It.IsAny<CancellationToken>()), Times.Once);
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            existingSession.Id,
+            string.Empty,
             existingSession.Id,
             It.IsAny<PlaystateRequest>(),
             It.IsAny<CancellationToken>()), Times.Never);
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            otherUserSession.Id,
+            string.Empty,
             otherUserSession.Id,
             It.IsAny<PlaystateRequest>(),
             It.IsAny<CancellationToken>()), Times.Never);
@@ -137,7 +137,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         await service.EnforceAsync(newestSession);
 
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            newestSession.Id,
+            string.Empty,
             newestSession.Id,
             It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -174,12 +174,12 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         await service.EnforceAsync(newestSession);
 
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            oldestSession.Id,
+            string.Empty,
             oldestSession.Id,
             It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
             It.IsAny<CancellationToken>()), Times.Once);
         sessionManager.Verify(manager => manager.SendPlaystateCommand(
-            newestSession.Id,
+            string.Empty,
             newestSession.Id,
             It.IsAny<PlaystateRequest>(),
             It.IsAny<CancellationToken>()), Times.Never);
@@ -203,7 +203,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
             .Returns(Task.CompletedTask);
         var stopRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         sessionManager.Setup(manager => manager.SendPlaystateCommand(
-                newestSession.Id,
+                string.Empty,
                 newestSession.Id,
                 It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
                 It.IsAny<CancellationToken>()))
@@ -234,7 +234,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
 
             await stopRequested.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
             sessionManager.Verify(manager => manager.SendPlaystateCommand(
-                newestSession.Id,
+                string.Empty,
                 newestSession.Id,
                 It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
                 It.IsAny<CancellationToken>()), Times.Once);
