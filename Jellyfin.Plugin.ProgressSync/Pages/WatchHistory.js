@@ -130,24 +130,48 @@ export default function (view) {
 
     async function loadUserHistory(user, card, hint, message, tabs, historyViews) {
         card.dataset.loading = 'true';
-        message.textContent = 'Loading watch history…';
-        message.hidden = false;
+        message.hidden = true;
+        tabs.hidden = false;
+        showHistoryTab(historyViews[0], historyViews);
         hint.textContent = 'Loading…';
+        for (const viewConfig of historyViews) {
+            populateHistoryGrid(viewConfig.grid, [], 'Loading…');
+        }
+
         try {
             const encodedUserId = encodeURIComponent(user.Id);
             const [watchedItems, inProgressItems] = await Promise.all([
-                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/RecentlyWatched/Users/' + encodedUserId)),
+                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/RecentlyWatched/Users/' + encodedUserId))
+                    .then(items => ({ items, error: null }), error => ({ items: null, error })),
                 ApiClient.getJSON(ApiClient.getUrl('ProgressSync/InProgress/Users/' + encodedUserId))
+                    .then(items => ({ items, error: null }), error => ({ items: null, error }))
             ]);
             if (!card.isConnected) {
                 return;
             }
 
-            const allItems = [...watchedItems, ...inProgressItems];
+            const results = new Map([
+                [false, watchedItems],
+                [true, inProgressItems]
+            ]);
+            let totalItems = 0;
+            let allLoaded = true;
             for (const viewConfig of historyViews) {
-                const items = allItems.filter(item =>
-                    item.ItemType === viewConfig.itemType
-                    && item.InProgress === viewConfig.inProgress);
+                const result = results.get(viewConfig.inProgress);
+                if (result.error || !Array.isArray(result.items)) {
+                    const error = result.error || new Error('Invalid watch history response');
+                    allLoaded = false;
+                    populateHistoryGrid(
+                        viewConfig.grid,
+                        [],
+                        'Could not load this history (' + errorText(error) + ').');
+                    console.warn('[ProgressSync]', 'could not load watch history', error);
+                    viewConfig.tab.textContent = viewConfig.label;
+                    continue;
+                }
+
+                const items = result.items.filter(item => item.ItemType === viewConfig.itemType);
+                totalItems += items.length;
                 populateHistoryGrid(
                     viewConfig.grid,
                     items,
@@ -157,14 +181,18 @@ export default function (view) {
                 viewConfig.tab.textContent = viewConfig.label + ' (' + items.length + ')';
             }
 
-            message.hidden = true;
-            tabs.hidden = false;
-            showHistoryTab(historyViews[0], historyViews);
-            hint.textContent = allItems.length + ' recent and in-progress items';
-            card.dataset.loaded = 'true';
+            hint.textContent = totalItems + ' recent and in-progress items';
+            if (allLoaded) {
+                card.dataset.loaded = 'true';
+            }
         } catch (error) {
-            message.textContent = 'Could not load history (' + errorText(error) + ').';
-            hint.textContent = 'Retry';
+            for (const viewConfig of historyViews) {
+                populateHistoryGrid(
+                    viewConfig.grid,
+                    [],
+                    'Could not load this history (' + errorText(error) + ').');
+            }
+            hint.textContent = 'Could not load history';
             console.warn('[ProgressSync]', 'could not load a user watch history', error);
         } finally {
             delete card.dataset.loading;

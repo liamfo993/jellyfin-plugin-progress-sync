@@ -77,8 +77,9 @@ button and, on movie and episode pages, the watch-status button next to the othe
 `WatchHistory.html` and `WatchHistory.js` provide a dashboard registered in the main menu, with
 per-user expandable histories. Expanding a user loads up to 25 accessible completed movies and
 episodes plus up to 25 partially watched movies and episodes. User and item names are inserted as
-text. The page reloads
-after a sync change because the details page only refreshes part of itself when user data changes.
+text. The four history tabs appear before the API requests complete, and completed and in-progress
+history load independently. The page reloads after a sync change because the details page only
+refreshes part of itself when user data changes.
 
 ## REST API
 

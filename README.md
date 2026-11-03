@@ -51,8 +51,9 @@ in-progress status. Progress is shown as a percentage when the item's runtime is
 Open **Watch History** from the main menu to see an activity dashboard. Expand a user to see their
 up to 25 of their most recent completed movies and up to 25 completed episodes, plus separate
 in-progress movie and episode lists with up to 25 items each. In-progress cards show a progress bar
-and percentage when runtime is available. Episode entries include the series name,
-season/episode number, and episode title. Items you cannot access are omitted.
+and percentage when runtime is available. The four tabs appear immediately when a user is expanded;
+each history type loads independently. Episode entries include the series name, season/episode
+number, and episode title. Items you cannot access are omitted.
 
 **Copy once** replaces your progress with another user's:
 
