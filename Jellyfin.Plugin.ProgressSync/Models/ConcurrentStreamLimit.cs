@@ -7,4 +7,5 @@ namespace Jellyfin.Plugin.ProgressSync.Models;
 /// </summary>
 /// <param name="UserId">The user identifier.</param>
 /// <param name="MaxConcurrentStreams">The maximum number of concurrent streams.</param>
-public sealed record ConcurrentStreamLimit(Guid UserId, int MaxConcurrentStreams);
+/// <param name="StopOldest">Whether the oldest stream is stopped instead of the newest.</param>
+public sealed record ConcurrentStreamLimit(Guid UserId, int MaxConcurrentStreams, bool StopOldest = false);

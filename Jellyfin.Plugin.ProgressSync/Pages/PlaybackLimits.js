@@ -6,6 +6,7 @@ function getTabs() {
     return [
         { href: configurationPageUrl('WatchHistory'), name: 'Watch history' },
         { href: configurationPageUrl('PlaybackLimits'), name: 'Playback limits' },
+        { href: configurationPageUrl('Notifications'), name: 'Notifications' },
         { href: configurationPageUrl('ProgressSync'), name: 'Progress sync' }
     ];
 }
@@ -47,7 +48,7 @@ export default function (view) {
 
     function renderLimits(data) {
         const limitsByUser = new Map(data.Limits.map(function (limit) {
-            return [limit.UserId, limit.MaxConcurrentStreams];
+            return [limit.UserId, limit];
         }));
         const fragment = document.createDocumentFragment();
         data.Users.forEach(function (user) {
@@ -64,24 +65,38 @@ export default function (view) {
             name.textContent = user.Name;
             userDetails.append(avatar, name);
 
-            const control = document.createElement('label');
+            const control = document.createElement('div');
             control.className = 'ps-limit-control';
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
             input.max = '100';
             input.step = '1';
-            input.value = String(limitsByUser.get(user.Id) || 0);
+            const setting = limitsByUser.get(user.Id);
+            input.value = String(setting ? setting.MaxConcurrentStreams : 0);
             input.dataset.userId = user.Id;
             input.className = 'emby-input ps-limit-input';
             input.setAttribute('aria-label', 'Maximum concurrent streams for ' + user.Name);
+            const policy = document.createElement('select');
+            policy.className = 'emby-select ps-limit-policy';
+            policy.setAttribute('aria-label', 'Stream to stop for ' + user.Name);
+            [
+                { value: 'newest', label: 'Stop newest stream' },
+                { value: 'oldest', label: 'Stop oldest stream' }
+            ].forEach(function (option) {
+                const element = document.createElement('option');
+                element.value = option.value;
+                element.textContent = option.label;
+                policy.appendChild(element);
+            });
+            policy.value = setting && setting.StopOldest ? 'oldest' : 'newest';
             const description = document.createElement('span');
             description.className = 'ps-limit-description';
             setLimitDescription(description, input.value);
             input.addEventListener('input', function () {
                 setLimitDescription(description, input.value);
             });
-            control.append(input, description);
+            control.append(input, policy, description);
             card.append(userDetails, control);
             fragment.appendChild(card);
         });
@@ -119,9 +134,12 @@ export default function (view) {
                 return;
             }
 
-            if (value > 0) {
-                limits.push({ UserId: input.dataset.userId, MaxConcurrentStreams: value });
-            }
+            const policy = input.closest('.ps-limit-control').querySelector('.ps-limit-policy');
+            limits.push({
+                UserId: input.dataset.userId,
+                MaxConcurrentStreams: value,
+                StopOldest: policy.value === 'oldest'
+            });
         }
 
         saveButton.disabled = true;

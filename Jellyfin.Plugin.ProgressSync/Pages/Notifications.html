@@ -1,0 +1,160 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/Notifications.js">
+    <style>
+        #progressSyncNotifications {
+            --ps-accent: #00a4dc;
+            --ps-card: rgba(255, 255, 255, .055);
+            --ps-border: rgba(255, 255, 255, .1);
+        }
+
+        #progressSyncNotifications [hidden] {
+            display: none !important;
+        }
+
+        #progressSyncNotifications .ps-hero,
+        #progressSyncNotifications .ps-panel,
+        #progressSyncNotifications .ps-info-card,
+        #progressSyncNotifications .ps-event-option {
+            border: 1px solid var(--ps-border);
+            border-radius: 12px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncNotifications .ps-hero {
+            padding: 1.5em;
+            margin-bottom: 1.25em;
+            border-color: rgba(0, 164, 220, .24);
+            background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
+        }
+
+        #progressSyncNotifications .ps-hero h1 {
+            margin: 0 0 .4em;
+            font-size: 1.8em;
+        }
+
+        #progressSyncNotifications .ps-info-card {
+            padding: 1em 1.1em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncNotifications .ps-info-card strong {
+            display: block;
+            margin-bottom: .35em;
+        }
+
+        #progressSyncNotifications .ps-panel {
+            padding: 1.25em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncNotifications .ps-panel h2 {
+            margin: 0 0 .35em;
+        }
+
+        #progressSyncNotifications .ps-credentials {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1em;
+            margin-top: 1.1em;
+        }
+
+        #progressSyncNotifications .ps-credential-field {
+            display: grid;
+            gap: .45em;
+        }
+
+        #progressSyncNotifications .ps-credential-field input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #progressSyncNotifications .ps-event-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: .7em;
+            margin: 1em 0;
+        }
+
+        #progressSyncNotifications .ps-event-option {
+            min-height: 3em;
+            padding: .8em 1em;
+        }
+
+        #progressSyncNotifications .ps-event-option label {
+            display: flex;
+            align-items: center;
+            gap: .7em;
+            margin: 0;
+        }
+
+        #progressSyncNotifications .ps-event-option span {
+            font-weight: 600;
+        }
+
+        #progressSyncNotifications .ps-status {
+            min-height: 1.5em;
+            margin: .9em 0;
+        }
+
+        #progressSyncNotifications .ps-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .7em;
+            align-items: center;
+            margin-top: 1em;
+        }
+    </style>
+    <div id="progressSyncNotifications" data-role="content">
+        <div class="content-primary">
+            <header class="ps-hero">
+                <h1>Pushover notifications</h1>
+                <p class="fieldDescription">Send selected Jellyfin library, watch, and playback activity to a Pushover user or group.</p>
+            </header>
+
+            <div class="ps-info-card">
+                <strong>Connect your Pushover account</strong>
+                <span class="fieldDescription">Create an application token in Pushover, then enter it with your user or group key. Credentials are stored on this server and are never returned to the browser. Leave credential fields blank to keep saved values.</span>
+            </div>
+
+            <form id="psPushoverForm">
+                <section class="ps-panel">
+                    <h2 class="sectionTitle">Pushover credentials</h2>
+                    <div id="psPushoverCredentialStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                    <div class="ps-credentials">
+                        <label class="ps-credential-field">
+                            <span class="fieldDescription">Application token</span>
+                            <input id="psPushoverAppToken" class="emby-input" type="password" autocomplete="new-password" maxlength="128" placeholder="Leave blank to keep the saved token">
+                        </label>
+                        <label class="ps-credential-field">
+                            <span class="fieldDescription">User or group key</span>
+                            <input id="psPushoverUserKey" class="emby-input" type="password" autocomplete="new-password" maxlength="128" placeholder="Leave blank to keep the saved key">
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input id="psPushoverClearCredentials" type="checkbox" is="emby-checkbox">
+                            <span>Clear saved Pushover credentials</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="ps-panel">
+                    <h2 class="sectionTitle">Events to notify</h2>
+                    <div class="fieldDescription">Library item alerts apply to movies and episodes. Watched alerts include the user and item name.</div>
+                    <div class="ps-event-list">
+                        <div class="checkboxContainer ps-event-option"><label><input id="psNotifyAdded" type="checkbox" is="emby-checkbox"><span>Movies or episodes added</span></label></div>
+                        <div class="checkboxContainer ps-event-option"><label><input id="psNotifyWatched" type="checkbox" is="emby-checkbox"><span>Movie or episode marked watched</span></label></div>
+                        <div class="checkboxContainer ps-event-option"><label><input id="psNotifyDeleted" type="checkbox" is="emby-checkbox"><span>Movies or episodes deleted</span></label></div>
+                        <div class="checkboxContainer ps-event-option"><label><input id="psNotifyPlaybackStarted" type="checkbox" is="emby-checkbox"><span>Playback started</span></label></div>
+                        <div class="checkboxContainer ps-event-option"><label><input id="psNotifyPlaybackStopped" type="checkbox" is="emby-checkbox"><span>Playback stopped</span></label></div>
+                    </div>
+                    <div class="ps-actions">
+                        <button id="psSavePushover" type="submit" class="emby-button button-submit"><span>Save notifications</span></button>
+                        <button id="psTestPushover" type="button" class="emby-button raised" disabled><span>Send test notification</span></button>
+                    </div>
+                    <div id="psPushoverSaveStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                </section>
+            </form>
+        </div>
+    </div>
+</div>

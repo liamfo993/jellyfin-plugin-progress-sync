@@ -104,7 +104,7 @@
 
         #progressSyncPlaybackLimits .ps-limit-control {
             display: grid;
-            grid-template-columns: minmax(90px, 135px) 1fr;
+            grid-template-columns: minmax(90px, 125px) minmax(150px, 1fr);
             align-items: center;
             gap: .75em;
         }
@@ -115,7 +115,12 @@
             text-align: center;
         }
 
+        #progressSyncPlaybackLimits .ps-limit-policy {
+            width: 100%;
+        }
+
         #progressSyncPlaybackLimits .ps-limit-description {
+            grid-column: 1 / -1;
             color: var(--secondary-text-color, #aaa);
             font-size: .9em;
         }
@@ -162,8 +167,8 @@
                     <span class="fieldDescription">Set a user's value to zero to allow any number of concurrent streams.</span>
                 </div>
                 <div class="ps-info-card">
-                    <strong>Newest stream is stopped</strong>
-                    <span class="fieldDescription">When playback exceeds the limit, the newest session or sessions receive a stop command first.</span>
+                    <strong>Choose which stream to stop</strong>
+                    <span class="fieldDescription">For each user, stop either their newest or oldest playback session when over the limit.</span>
                 </div>
             </div>
 
@@ -171,7 +176,7 @@
                 <div class="ps-panel-header">
                     <div>
                         <h2 class="sectionTitle">Limits by user</h2>
-                        <div class="fieldDescription">Choose a whole number from 0 to 100. Changes take effect when saved.</div>
+                        <div class="fieldDescription">Choose a whole number from 0 to 100 and which stream to stop. Changes take effect when saved.</div>
                     </div>
                     <button is="emby-button" type="button" class="raised" id="psRefreshLimits">
                         <span>Reload users</span>

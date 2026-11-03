@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
@@ -42,6 +43,8 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ConcurrentStreamLimitStore _streamLimits;
+    private readonly PushoverNotificationStore _pushoverSettings;
+    private readonly PushoverNotificationService _pushoverService;
     private readonly WebInjectionStatus _injectionStatus;
     private readonly ILogger<ProgressSyncController> _logger;
 
@@ -55,6 +58,8 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="store">The link store.</param>
     /// <param name="globalSettings">The global sync settings store.</param>
     /// <param name="streamLimits">Per-user concurrent stream limits.</param>
+    /// <param name="pushoverSettings">The Pushover notification settings.</param>
+    /// <param name="pushoverService">The Pushover notification service.</param>
     /// <param name="injectionStatus">The web client integration status.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{ProgressSyncController}"/> interface.</param>
     public ProgressSyncController(
@@ -65,6 +70,8 @@ public sealed class ProgressSyncController : ControllerBase
         LinkStore store,
         GlobalSyncSettingsStore globalSettings,
         ConcurrentStreamLimitStore streamLimits,
+        PushoverNotificationStore pushoverSettings,
+        PushoverNotificationService pushoverService,
         WebInjectionStatus injectionStatus,
         ILogger<ProgressSyncController> logger)
     {
@@ -75,6 +82,8 @@ public sealed class ProgressSyncController : ControllerBase
         _store = store;
         _globalSettings = globalSettings;
         _streamLimits = streamLimits;
+        _pushoverSettings = pushoverSettings;
+        _pushoverService = pushoverService;
         _injectionStatus = injectionStatus;
         _logger = logger;
     }
@@ -809,7 +818,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <summary>
     /// Gets per-user concurrent stream limits.
     /// </summary>
-    /// <returns>Enabled users and configured stream limits.</returns>
+    /// <returns>Enabled users and configured stream limits and stop policies.</returns>
     [HttpGet("Admin/StreamLimits")]
     [Authorize(Policy = Policies.RequiresElevation)]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -819,13 +828,13 @@ public sealed class ProgressSyncController : ControllerBase
         return new ConcurrentStreamLimitsResponse(
             users,
             _streamLimits.Limits
-                .Select(pair => new ConcurrentStreamLimit(pair.Key, pair.Value))
+                .Select(pair => new ConcurrentStreamLimit(pair.Key, pair.Value.MaxConcurrentStreams, pair.Value.StopOldest))
                 .OrderBy(limit => users.FirstOrDefault(user => user.Id == limit.UserId)?.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList());
     }
 
     /// <summary>
-    /// Replaces per-user concurrent stream limits. A limit of zero removes a user's limit.
+    /// Replaces per-user concurrent stream limits. A limit of zero disables enforcement but retains an oldest-stream preference.
     /// </summary>
     /// <param name="limits">Per-user maximum stream counts.</param>
     /// <returns>No content when saved.</returns>
@@ -851,6 +860,88 @@ public sealed class ProgressSyncController : ControllerBase
         _streamLimits.Save(limits);
         _logger.LogInformation("Progress Sync: administrator updated concurrent stream limits for {UserCount} users", limits.Length);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Gets Pushover notification preferences without returning stored credentials.
+    /// </summary>
+    /// <returns>Current notification preferences and credential status.</returns>
+    [HttpGet("Admin/Pushover")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<PushoverNotificationsResponse> GetPushoverSettings()
+    {
+        var settings = _pushoverSettings.Current;
+        return new PushoverNotificationsResponse(
+            settings.IsConfigured,
+            settings.NotifyAdded,
+            settings.NotifyWatched,
+            settings.NotifyDeleted,
+            settings.NotifyPlaybackStarted,
+            settings.NotifyPlaybackStopped);
+    }
+
+    /// <summary>
+    /// Replaces Pushover event preferences and optionally updates the credentials.
+    /// </summary>
+    /// <param name="update">The settings to save.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/Pushover")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdatePushoverSettings([FromBody] PushoverNotificationsUpdate? update)
+    {
+        if (update is null || update.AppToken?.Length > 128 || update.UserKey?.Length > 128)
+        {
+            return BadRequest("Pushover credentials must be no more than 128 characters.");
+        }
+
+        var current = _pushoverSettings.Current;
+        var appToken = update.ClearCredentials
+            ? null
+            : string.IsNullOrWhiteSpace(update.AppToken) ? current.AppToken : update.AppToken.Trim();
+        var userKey = update.ClearCredentials
+            ? null
+            : string.IsNullOrWhiteSpace(update.UserKey) ? current.UserKey : update.UserKey.Trim();
+        var hasNotifications = update.NotifyAdded
+            || update.NotifyWatched
+            || update.NotifyDeleted
+            || update.NotifyPlaybackStarted
+            || update.NotifyPlaybackStopped;
+        if (hasNotifications && (string.IsNullOrWhiteSpace(appToken) || string.IsNullOrWhiteSpace(userKey)))
+        {
+            return BadRequest("Configure both Pushover credentials before enabling notifications.");
+        }
+
+        _pushoverSettings.Save(update);
+        _logger.LogInformation("Progress Sync: administrator updated Pushover notification settings");
+        return NoContent();
+    }
+
+    /// <summary>Sends a test message using the configured Pushover credentials.</summary>
+    /// <returns>No content on success.</returns>
+    [HttpPost("Admin/Pushover/Test")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<ActionResult> TestPushover()
+    {
+        try
+        {
+            await _pushoverService.SendTestAsync(HttpContext.RequestAborted).ConfigureAwait(false);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Progress Sync: Pushover test notification failed");
+            return StatusCode(StatusCodes.Status502BadGateway, "Pushover could not deliver the test message. Check the credentials and server network.");
+        }
     }
 
     private List<AdminUserDto> GetEnabledAdminUsers()

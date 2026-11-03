@@ -15,11 +15,16 @@ namespace Jellyfin.Plugin.ProgressSync.Services;
 /// </summary>
 public sealed class ConcurrentStreamLimitStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+    };
+
     private readonly Lock _writeLock = new();
     private readonly string _path;
     private readonly ILogger<ConcurrentStreamLimitStore> _logger;
-    private volatile IReadOnlyDictionary<Guid, int> _limits;
+    private volatile IReadOnlyDictionary<Guid, ConcurrentStreamLimitSetting> _limits;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConcurrentStreamLimitStore"/> class.
@@ -44,7 +49,7 @@ public sealed class ConcurrentStreamLimitStore
     }
 
     /// <summary>Gets the current limits snapshot.</summary>
-    public IReadOnlyDictionary<Guid, int> Limits => _limits;
+    public IReadOnlyDictionary<Guid, ConcurrentStreamLimitSetting> Limits => _limits;
 
     /// <summary>Replaces all configured limits.</summary>
     /// <param name="limits">The per-user limits to persist.</param>
@@ -52,8 +57,10 @@ public sealed class ConcurrentStreamLimitStore
     {
         ArgumentNullException.ThrowIfNull(limits);
         var snapshot = limits
-            .Where(limit => limit.MaxConcurrentStreams > 0)
-            .ToDictionary(limit => limit.UserId, limit => limit.MaxConcurrentStreams);
+            .Where(limit => limit.MaxConcurrentStreams > 0 || limit.StopOldest)
+            .ToDictionary(
+                limit => limit.UserId,
+                limit => new ConcurrentStreamLimitSetting(limit.MaxConcurrentStreams, limit.StopOldest));
         lock (_writeLock)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -77,23 +84,56 @@ public sealed class ConcurrentStreamLimitStore
         }
     }
 
-    private IReadOnlyDictionary<Guid, int> Load()
+    private IReadOnlyDictionary<Guid, ConcurrentStreamLimitSetting> Load()
     {
         if (!File.Exists(_path))
         {
-            return new Dictionary<Guid, int>();
+            return new Dictionary<Guid, ConcurrentStreamLimitSetting>();
         }
 
         try
         {
             using var stream = File.OpenRead(_path);
-            return JsonSerializer.Deserialize<Dictionary<Guid, int>>(stream, JsonOptions)
-                ?? new Dictionary<Guid, int>();
+            using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new JsonException("Concurrent stream limits must be a JSON object.");
+            }
+
+            var result = new Dictionary<Guid, ConcurrentStreamLimitSetting>();
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (!Guid.TryParse(property.Name, out var userId))
+                {
+                    throw new JsonException("Concurrent stream limit contains an invalid user ID.");
+                }
+
+                if (property.Value.ValueKind == JsonValueKind.Number
+                    && property.Value.TryGetInt32(out var legacyLimit)
+                    && legacyLimit > 0)
+                {
+                    result[userId] = new ConcurrentStreamLimitSetting(legacyLimit, false);
+                    continue;
+                }
+
+                var setting = property.Value.Deserialize<ConcurrentStreamLimitSetting>(JsonOptions);
+                if (setting is null || setting.MaxConcurrentStreams < 0)
+                {
+                    throw new JsonException("Concurrent stream limit contains an invalid setting.");
+                }
+
+                if (setting.MaxConcurrentStreams > 0 || setting.StopOldest)
+                {
+                    result[userId] = setting;
+                }
+            }
+
+            return result;
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Progress Sync: could not read concurrent stream limits from {Path}", _path);
-            return new Dictionary<Guid, int>();
+            return new Dictionary<Guid, ConcurrentStreamLimitSetting>();
         }
     }
 }

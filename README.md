@@ -11,8 +11,9 @@ Copy or sync watch progress between users on the same Jellyfin server.
 Progress Sync adds a sync button to movie, series, season and episode pages in the Jellyfin web
 client, plus a watch history dashboard in the main menu. Use it to take over another user's
 progress once, or to link a title so your progress stays in step as you watch.
-Admins can also set per-user concurrent playback limits; the newest stream or streams are stopped
-when a user exceeds their configured limit.
+Admins can set per-user concurrent playback limits and choose whether the newest or oldest stream
+is stopped when a user exceeds their configured limit. A separate Notifications tab can send
+selected library, watched-status, and playback events to Pushover.
 
 Only watch progress is copied: resume position, watched state, play count and last played date.
 Favorites, ratings and audio/subtitle choices are left alone.
@@ -86,8 +87,14 @@ one-way or two-way direction, and movie, series, and music scopes. Profiles appe
 continuous sync list and can be deactivated individually. Global profiles apply to future progress
 changes; they do not copy existing progress when created.
 
-Set a user's limit to **0** for unlimited streams. When a user starts playback over their limit,
-the newest playback session or sessions are stopped and the action is recorded in the Jellyfin log.
+Set a user's limit to **0** for unlimited streams. Choose whether the newest or oldest playback
+session should be stopped when the user exceeds the limit. The action is recorded in the Jellyfin
+log.
+
+On the **Notifications** tab, enter a Pushover application token and user or group key, choose which
+movie/episode additions, watched changes, deletions, and playback starts/stops to report, then save.
+Use **Send test notification** to verify the credentials. Credentials are stored in the plugin's
+server-side configuration and are not returned to the browser.
 
 ## Privacy
 
@@ -97,6 +104,8 @@ Progress Sync is meant for households whose members trust each other:
   Items hidden by library access or parental controls are listed as unavailable. People are not told
   when someone follows them.
 - The watch history dashboard only includes movies and episodes the current user can access.
+- When enabled, Pushover notifications send selected item titles, user names, and playback device
+  names to Pushover. Pushover credentials are stored in the plugin's server-side configuration.
 - With a two-way link, your partner's actions on that title, such as marking it unwatched, change
   your progress too. There is no undo.
 

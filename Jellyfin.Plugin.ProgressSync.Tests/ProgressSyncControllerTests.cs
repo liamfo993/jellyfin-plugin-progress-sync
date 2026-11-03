@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Api;
 using Jellyfin.Plugin.ProgressSync.Models;
@@ -10,6 +12,7 @@ using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +33,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ConcurrentStreamLimitStore _streamLimits;
+    private readonly PushoverNotificationStore _pushoverSettings;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -45,6 +49,9 @@ public sealed class ProgressSyncControllerTests : IDisposable
         _streamLimits = new ConcurrentStreamLimitStore(
             Path.Combine(_dir, "stream-limits.json"),
             NullLogger<ConcurrentStreamLimitStore>.Instance);
+        _pushoverSettings = new PushoverNotificationStore(
+            Path.Combine(_dir, "pushover-notifications.json"),
+            NullLogger<PushoverNotificationStore>.Instance);
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         _alice = _server.AddUser("alice");
         _bob = _server.AddUser("bob");
@@ -72,6 +79,15 @@ public sealed class ProgressSyncControllerTests : IDisposable
             _store,
             _globalSettings,
             _streamLimits,
+            _pushoverSettings,
+            new PushoverNotificationService(
+                _server.Library.Object,
+                _server.UserData.Object,
+                _server.Users.Object,
+                Mock.Of<ISessionManager>(),
+                _pushoverSettings,
+                Mock.Of<IHttpClientFactory>(),
+                NullLogger<PushoverNotificationService>.Instance),
             new WebInjectionStatus(),
             NullLogger<ProgressSyncController>.Instance);
         var claimValue = rawClaim ?? caller?.Id.ToString("N");
@@ -208,6 +224,80 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(_alice.Id, Assert.Single(result.Limits).UserId);
         Assert.Equal(2, result.Limits[0].MaxConcurrentStreams);
         Assert.DoesNotContain(_bob.Id, _streamLimits.Limits.Keys);
+    }
+
+    [Fact]
+    public void StreamLimits_PersistsPerUserStopOldestChoice()
+    {
+        Assert.Equal(204, Status(As(_alice).UpdateStreamLimits([
+            new ConcurrentStreamLimit(_alice.Id, 1, StopOldest: true)
+        ])));
+
+        var result = As(_alice).GetStreamLimits().Value!;
+        var setting = Assert.Single(result.Limits);
+        Assert.True(setting.StopOldest);
+        Assert.True(_streamLimits.Limits[_alice.Id].StopOldest);
+    }
+
+    [Fact]
+    public void PushoverSettings_SavePreferencesWithoutReturningCredentials()
+    {
+        var controller = As(_alice);
+        Assert.Equal(204, Status(controller.UpdatePushoverSettings(new PushoverNotificationsUpdate(
+            "application-token",
+            "user-key",
+            false,
+            true,
+            true,
+            true,
+            true,
+            false))));
+
+        var result = controller.GetPushoverSettings().Value!;
+        Assert.True(result.IsConfigured);
+        Assert.True(result.NotifyAdded);
+        Assert.True(result.NotifyWatched);
+        Assert.True(result.NotifyDeleted);
+        Assert.True(result.NotifyPlaybackStarted);
+        Assert.False(result.NotifyPlaybackStopped);
+        Assert.Equal("application-token", _pushoverSettings.Current.AppToken);
+        Assert.Equal("user-key", _pushoverSettings.Current.UserKey);
+    }
+
+    [Fact]
+    public void PushoverSettings_RejectsOversizedCredentials()
+    {
+        Assert.Equal(400, Status(As(_alice).UpdatePushoverSettings(new PushoverNotificationsUpdate(
+            new string('x', 129),
+            null,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false))));
+    }
+
+    [Fact]
+    public void PushoverSettings_RequiresCredentialsForEnabledEvents()
+    {
+        Assert.Equal(400, Status(As(_alice).UpdatePushoverSettings(new PushoverNotificationsUpdate(
+            null,
+            null,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false))));
+    }
+
+    [Fact]
+    public async Task TestPushover_RequiresConfiguredCredentials()
+    {
+        var result = await As(_alice).TestPushover();
+
+        Assert.Equal(400, Status(result));
     }
 
     [Fact]

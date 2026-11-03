@@ -70,13 +70,17 @@ public sealed class ConcurrentStreamLimitService : IHostedService
 
         List<SessionInfo> sessionsToStop;
         int limit;
+        bool stopOldest;
         lock (_enforcementLock)
         {
-            if (!_store.Limits.TryGetValue(startedSession.UserId, out limit) || limit <= 0)
+            if (!_store.Limits.TryGetValue(startedSession.UserId, out var settings)
+                || settings.MaxConcurrentStreams <= 0)
             {
                 return;
             }
 
+            limit = settings.MaxConcurrentStreams;
+            stopOldest = settings.StopOldest;
             var activeSessions = _sessionManager.Sessions
                 .Where(session => session.UserId == startedSession.UserId
                     && session.NowPlayingItem is not null)
@@ -96,9 +100,10 @@ public sealed class ConcurrentStreamLimitService : IHostedService
                 return;
             }
 
-            sessionsToStop = activeSessions
-                .OrderByDescending(session => session.LastPlaybackCheckIn)
-                .ThenByDescending(session => session.LastActivityDate)
+            var orderedSessions = settings.StopOldest
+                ? activeSessions.OrderBy(session => session.LastPlaybackCheckIn).ThenBy(session => session.LastActivityDate)
+                : activeSessions.OrderByDescending(session => session.LastPlaybackCheckIn).ThenByDescending(session => session.LastActivityDate);
+            sessionsToStop = orderedSessions
                 .Where(session => !_sessionsBeingStopped.Contains(session.Id)
                     && !IsStopCommandRecent(session.Id, now))
                 .Take(overage)
@@ -126,7 +131,8 @@ public sealed class ConcurrentStreamLimitService : IHostedService
                     CancellationToken.None).ConfigureAwait(false);
 
                 _logger.LogWarning(
-                    "Progress Sync: requested playback stop for newest session {SessionId} for user {UserId}; concurrent stream limit is {Limit}",
+                    "Progress Sync: requested playback stop for {Age} session {SessionId} for user {UserId}; concurrent stream limit is {Limit}",
+                    stopOldest ? "oldest" : "newest",
                     session.Id,
                     startedSession.UserId,
                     limit);

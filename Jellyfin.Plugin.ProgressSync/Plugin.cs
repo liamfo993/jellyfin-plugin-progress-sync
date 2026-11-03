@@ -67,6 +67,16 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "Notifications",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.Notifications.html"
+            },
+            new PluginPageInfo
+            {
+                Name = "Notifications.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.Notifications.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "ProgressSync.js",
                 EmbeddedResourcePath = GetType().Namespace + ".Pages.ProgressSync.js"
             },

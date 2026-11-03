@@ -38,6 +38,10 @@
     <EmbeddedResource Include="Pages\PlaybackLimits.html" />
     <None Remove="Pages\PlaybackLimits.js" />
     <EmbeddedResource Include="Pages\PlaybackLimits.js" />
+    <None Remove="Pages\Notifications.html" />
+    <EmbeddedResource Include="Pages\Notifications.html" />
+    <None Remove="Pages\Notifications.js" />
+    <EmbeddedResource Include="Pages\Notifications.js" />
     <None Remove="Pages\ProgressSync.js" />
     <EmbeddedResource Include="Pages\ProgressSync.js" />
   </ItemGroup>

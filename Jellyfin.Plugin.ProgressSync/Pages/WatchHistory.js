@@ -6,6 +6,7 @@ function getTabs() {
     return [
         { href: configurationPageUrl('WatchHistory'), name: 'Watch history' },
         { href: configurationPageUrl('PlaybackLimits'), name: 'Playback limits' },
+        { href: configurationPageUrl('Notifications'), name: 'Notifications' },
         { href: configurationPageUrl('ProgressSync'), name: 'Progress sync' }
     ];
 }

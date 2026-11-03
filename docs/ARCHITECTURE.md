@@ -83,11 +83,19 @@ refreshes part of itself when user data changes.
 
 `ConcurrentStreamLimitService` listens for playback-start and playback-progress events and compares
 sessions with a playing item against each user's persisted limit. It serializes decisions, requests
-a stop for the newest session or sessions with Jellyfin's playstate command, and retries an
-unconfirmed stop no more than once every 30 seconds. A zero or missing limit means unlimited.
-Administrators manage per-user limits on the Playback limits tab. Watch history, playback limits,
-and progress sync are separate tabs in the plugin page navigation. The Progress sync tab groups
-one-time copies, continuous links, and global profiles into separate guided sections.
+a stop for the per-user configured newest or oldest session or sessions with Jellyfin's playstate
+command, and retries an unconfirmed stop no more than once every 30 seconds. A zero or missing limit
+means unlimited.
+
+`PushoverNotificationService` listens for movie/episode additions and removals, watched-state saves,
+and playback starts/stops. It sends enabled events to the Pushover messages API using credentials
+stored in the plugin configuration directory. The Notifications tab never reads credentials back
+to the browser; it reports only whether both are configured. Users can save event preferences,
+replace or clear credentials, and send a test message.
+
+Watch history, playback limits, notifications, and progress sync are separate tabs in the plugin
+page navigation. The Progress sync tab groups one-time copies, continuous links, and global profiles
+into separate guided sections.
 
 ## REST API
 
@@ -115,6 +123,9 @@ Progress sync tab and verify that both users can access the selected item before
 | `DELETE /Admin/GlobalProfiles/{profileId}` | admin | Deactivate one global sync profile |
 | `POST /Admin/GlobalSettings` | admin | Replace all global sync profiles |
 | `GET /Admin/StreamLimits` | admin | Enabled users and current per-user stream limits |
-| `POST /Admin/StreamLimits` | admin | Replace per-user stream limits (0 means unlimited; maximum is 100) |
+| `POST /Admin/StreamLimits` | admin | Replace per-user stream limits and stop-newest/oldest policy (0 means unlimited; maximum is 100) |
+| `GET /Admin/Pushover` | admin | Pushover event preferences and configured-credential status |
+| `POST /Admin/Pushover` | admin | Save Pushover event preferences and optionally replace or clear credentials |
+| `POST /Admin/Pushover/Test` | admin | Send a test Pushover message |
 
 Requests without a user (such as API keys) get 403 on user routes.

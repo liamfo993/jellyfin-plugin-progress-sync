@@ -140,6 +140,47 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EnforceAsync_StopsOldestPlaybackWhenConfigured()
+    {
+        var userId = Guid.NewGuid();
+        var oldestSession = CreateSession(userId, "oldest");
+        oldestSession.LastPlaybackCheckIn = DateTime.UtcNow.AddMinutes(-2);
+        var middleSession = CreateSession(userId, "middle");
+        middleSession.LastPlaybackCheckIn = DateTime.UtcNow.AddMinutes(-1);
+        var newestSession = CreateSession(userId, "newest");
+        newestSession.LastPlaybackCheckIn = DateTime.UtcNow;
+        var sessionManager = new Mock<ISessionManager>();
+        sessionManager.SetupGet(manager => manager.Sessions).Returns([oldestSession, middleSession, newestSession]);
+        sessionManager.Setup(manager => manager.SendPlaystateCommand(
+                string.Empty,
+                It.IsAny<string>(),
+                It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var store = new ConcurrentStreamLimitStore(
+            Path.Combine(_dir, "stream-limits.json"),
+            NullLogger<ConcurrentStreamLimitStore>.Instance);
+        store.Save([new ConcurrentStreamLimit(userId, 2, StopOldest: true)]);
+        var service = new ConcurrentStreamLimitService(
+            sessionManager.Object,
+            store,
+            NullLogger<ConcurrentStreamLimitService>.Instance);
+
+        await service.EnforceAsync(newestSession);
+
+        sessionManager.Verify(manager => manager.SendPlaystateCommand(
+            string.Empty,
+            oldestSession.Id,
+            It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+            It.IsAny<CancellationToken>()), Times.Once);
+        sessionManager.Verify(manager => manager.SendPlaystateCommand(
+            string.Empty,
+            newestSession.Id,
+            It.IsAny<PlaystateRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task PlaybackProgress_RechecksConcurrentStreamLimit()
     {
         var userId = Guid.NewGuid();
