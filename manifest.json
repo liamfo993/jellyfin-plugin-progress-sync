@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
             {
+                "version": "1.0.12.0",
+                "changelog": "Add in-progress movie and episode tabs with playback progress.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.12.0/progress-sync_1.0.12.0.zip",
+                "checksum": "91b88f7dfdfe34bfd5bf9977c8e9c344",
+                "timestamp": "2026-11-03T20:08:36Z"
+            },
+            {
                 "version": "1.0.11.0",
                 "changelog": "Separate watched movies and episodes with 25 recent items per tab.",
                 "targetAbi": "12.1.0.0",
