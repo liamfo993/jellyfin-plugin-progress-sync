@@ -35,6 +35,7 @@ public sealed class ProgressSyncController : ControllerBase
 
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
+    private readonly IUserDataManager _userDataManager;
     private readonly ProgressCopier _copier;
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
@@ -46,6 +47,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// </summary>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
+    /// <param name="userDataManager">Instance of the <see cref="IUserDataManager"/> interface.</param>
     /// <param name="copier">The progress copier.</param>
     /// <param name="store">The link store.</param>
     /// <param name="globalSettings">The global sync settings store.</param>
@@ -54,6 +56,7 @@ public sealed class ProgressSyncController : ControllerBase
     public ProgressSyncController(
         ILibraryManager libraryManager,
         IUserManager userManager,
+        IUserDataManager userDataManager,
         ProgressCopier copier,
         LinkStore store,
         GlobalSyncSettingsStore globalSettings,
@@ -62,6 +65,7 @@ public sealed class ProgressSyncController : ControllerBase
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
+        _userDataManager = userDataManager;
         _copier = copier;
         _store = store;
         _globalSettings = globalSettings;
@@ -110,6 +114,48 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         return _copier.CopyScope(source, me, item, UserDataSaveReason.UpdateUserData);
+    }
+
+    /// <summary>
+    /// Lists enabled users' watch status for a movie or episode, respecting each user's item access.
+    /// </summary>
+    /// <param name="itemId">A movie or episode.</param>
+    /// <response code="200">Watch status returned.</response>
+    /// <response code="400">Item is not a movie or episode.</response>
+    /// <response code="403">The caller is not a user.</response>
+    /// <response code="404">Item not found or not accessible.</response>
+    /// <returns>The watch status for enabled users.</returns>
+    [HttpGet("Items/{itemId}/WatchStatus")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<IReadOnlyList<UserWatchStatusDto>> GetWatchStatus([FromRoute] Guid itemId)
+    {
+        var me = GetCurrentUser();
+        if (me is null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var item = GetVisibleItem(itemId, me);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        if (item is not Movie and not Episode)
+        {
+            return BadRequest("Watch status is only available for movies and episodes.");
+        }
+
+        var statuses = _userManager.GetUsers()
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            .Select(user => GetWatchStatus(user, [item]))
+            .ToList();
+
+        return statuses;
     }
 
     /// <summary>
@@ -588,6 +634,39 @@ public sealed class ProgressSyncController : ControllerBase
     {
         // GetItemById(id, user) checks library access and parental rules; BaseItem.IsVisible does not.
         return itemId.Equals(Guid.Empty) ? null : _libraryManager.GetItemById<BaseItem>(itemId, user);
+    }
+
+    private UserWatchStatusDto GetWatchStatus(User user, IReadOnlyList<BaseItem> versions)
+    {
+        var visibleVersions = versions
+            .Select(version => GetVisibleItem(version.Id, user))
+            .OfType<BaseItem>()
+            .DistinctBy(version => version.Id)
+            .ToList();
+        if (visibleVersions.Count == 0)
+        {
+            return new UserWatchStatusDto(user.Id, user.Username, false, false, false, null);
+        }
+
+        var userData = _userDataManager.GetUserDataBatch(visibleVersions, user);
+        var played = visibleVersions.Any(version => userData.GetValueOrDefault(version.Id)?.Played == true);
+        var inProgress = visibleVersions.Any(version => (userData.GetValueOrDefault(version.Id)?.PlaybackPositionTicks ?? 0) > 0);
+        int? progressPercent = visibleVersions
+            .Select(version =>
+            {
+                var data = userData.GetValueOrDefault(version.Id);
+                var runtimeTicks = version.RunTimeTicks;
+                if (data is null || data.PlaybackPositionTicks <= 0 || runtimeTicks is not > 0)
+                {
+                    return null;
+                }
+
+                var percent = (double)data.PlaybackPositionTicks / runtimeTicks.Value * 100;
+                return (int?)Math.Clamp(Math.Round(percent, MidpointRounding.AwayFromZero), 1, 99);
+            })
+            .Max();
+
+        return new UserWatchStatusDto(user.Id, user.Username, true, played, inProgress, progressPercent);
     }
 
     private LinkDto? ToDto(SyncLink link, Guid me)

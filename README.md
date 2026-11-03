@@ -45,6 +45,9 @@ Favorites, ratings and audio/subtitle choices are left alone.
 
 Open a title and click the sync button next to the other actions.
 
+On movie and episode pages, **Watch status** shows each enabled user's watched, unwatched, or
+in-progress status. Progress is shown as a percentage when the item's runtime is available.
+
 **Copy once** replaces your progress with another user's:
 
 | Page    | What is copied                    |
@@ -76,8 +79,9 @@ changes; they do not copy existing progress when created.
 
 Progress Sync is meant for households whose members trust each other:
 
-- Every user can see the other users and copy or follow their progress. People are not told when
-  someone follows them.
+- Every user can see the other enabled users and their progress status for items they can access.
+  Items hidden by library access or parental controls are listed as unavailable. People are not told
+  when someone follows them.
 - With a two-way link, your partner's actions on that title, such as marking it unwatched, change
   your progress too. There is no undo.
 

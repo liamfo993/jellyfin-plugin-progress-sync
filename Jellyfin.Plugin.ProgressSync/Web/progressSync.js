@@ -16,6 +16,21 @@
     const BUTTON_HTML = '<button is="emby-button" type="button" class="button-flat btnProgressSync detailButton" title="Sync progress" aria-label="Sync progress">'
         + '<div class="detailButton-content"><span class="material-icons detailButton-icon sync" aria-hidden="true"></span></div></button>';
 
+    const WATCH_STATUS_BUTTON_HTML = '<button is="emby-button" type="button" class="button-flat btnProgressSyncStatus detailButton" title="Watch status" aria-label="Watch status">'
+        + '<div class="detailButton-content"><span class="material-icons detailButton-icon group" aria-hidden="true"></span></div></button>';
+
+    const WATCH_STATUS_DIALOG_HTML = ''
+        + '<div class="formDialogHeader">'
+        + '<button is="paper-icon-button-light" class="btnCancel autoSize" tabindex="-1" title="Close"><span class="material-icons arrow_back" aria-hidden="true"></span></button>'
+        + '<h3 class="formDialogHeaderTitle"></h3>'
+        + '</div>'
+        + '<div class="formDialogContent smoothScrollY">'
+        + '<div class="dialogContentInner" style="padding-top:1em;">'
+        + '<ul class="psWatchStatusList" style="list-style:none;padding:0;margin:0;"></ul>'
+        + '<p class="psWatchStatusMessage" aria-live="polite">Loading…</p>'
+        + '</div>'
+        + '</div>';
+
     const DIALOG_HTML = ''
         + '<div class="formDialogHeader">'
         + '<button is="paper-icon-button-light" class="btnCancel autoSize" tabindex="-1" title="Close"><span class="material-icons arrow_back" aria-hidden="true"></span></button>'
@@ -105,6 +120,16 @@
                 });
             });
             bar.insertBefore(button, bar.querySelector('.btnMoreCommands'));
+
+            if (item.Type === 'Movie' || item.Type === 'Episode') {
+                const statusButton = fromHtml(WATCH_STATUS_BUTTON_HTML);
+                statusButton.addEventListener('click', function () {
+                    openWatchStatus(item).catch(function (err) {
+                        console.warn(LOG, 'watch status failed', err);
+                    });
+                });
+                bar.insertBefore(statusButton, bar.querySelector('.btnMoreCommands'));
+            }
         } catch (err) {
             console.warn(LOG, 'could not add button', err);
         }
@@ -147,6 +172,57 @@
     function selectedName(select) {
         const option = select.options[select.selectedIndex];
         return option ? option.text : '';
+    }
+
+    async function openWatchStatus(item) {
+        const apiClient = window.ApiClient;
+        const dialogHelper = window.Dashboard && window.Dashboard.dialogHelper;
+        if (!dialogHelper) {
+            console.warn(LOG, 'Dashboard.dialogHelper not available');
+            return;
+        }
+
+        const dlg = dialogHelper.createDialog({ removeOnClose: true, size: 'small', scrollY: true });
+        dlg.classList.add('formDialog');
+        dlg.innerHTML = WATCH_STATUS_DIALOG_HTML;
+        dlg.querySelector('.formDialogHeaderTitle').textContent = 'Watch status: ' + item.Name;
+        dlg.querySelector('.btnCancel').addEventListener('click', function () {
+            dialogHelper.close(dlg);
+        });
+        dialogHelper.open(dlg);
+
+        const list = dlg.querySelector('.psWatchStatusList');
+        const message = dlg.querySelector('.psWatchStatusMessage');
+        try {
+            const statuses = await apiClient.getJSON(
+                apiClient.getUrl('ProgressSync/Items/' + item.Id + '/WatchStatus'));
+            list.innerHTML = '';
+            for (const status of statuses) {
+                const row = document.createElement('li');
+                row.style.cssText = 'display:flex;justify-content:space-between;gap:1em;padding:.6em 0;border-bottom:1px solid rgba(255,255,255,.12);';
+                const name = document.createElement('span');
+                name.textContent = status.UserName;
+                const state = document.createElement('span');
+                if (!status.CanAccess) {
+                    state.textContent = 'Unavailable';
+                } else if (status.Played) {
+                    state.textContent = 'Watched';
+                } else if (status.InProgress) {
+                    state.textContent = typeof status.ProgressPercent !== 'number'
+                        ? 'In progress'
+                        : 'In progress (' + status.ProgressPercent + '%)';
+                } else {
+                    state.textContent = 'Unwatched';
+                }
+                row.appendChild(name);
+                row.appendChild(state);
+                list.appendChild(row);
+            }
+            message.textContent = statuses.length === 0 ? 'No enabled users found.' : '';
+        } catch (err) {
+            message.textContent = 'Could not load watch status (' + errorText(err) + ').';
+            console.warn(LOG, 'could not load watch status', err);
+        }
     }
 
     async function openDialog(item) {

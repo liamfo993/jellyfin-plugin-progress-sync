@@ -62,6 +62,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
         var controller = new ProgressSyncController(
             _server.Library.Object,
             _server.Users.Object,
+            _server.UserData.Object,
             _copier,
             _store,
             _globalSettings,
@@ -114,6 +115,60 @@ public sealed class ProgressSyncControllerTests : IDisposable
         var folder = _server.AddItem(new Folder { Id = Guid.NewGuid() });
 
         Assert.Equal(400, Status(As(_bob).CopyFrom(folder.Id, _alice.Id)));
+    }
+
+    [Fact]
+    public void GetWatchStatus_RespectsItemAccessAndReportsWatchState()
+    {
+        var charlie = _server.AddUser("charlie");
+        _movie.RunTimeTicks = 1000;
+        _server.Data[(_alice.Id, _movie.Id)] = FakeServer.Progress(0, played: true);
+        _server.Data[(_bob.Id, _movie.Id)] = FakeServer.Progress(500);
+        _server.Hidden.Add((charlie.Id, _movie.Id));
+
+        var result = As(_alice).GetWatchStatus(_movie.Id).Value!;
+
+        Assert.Equal(3, result.Count);
+        var aliceStatus = Assert.Single(result, status => status.UserId == _alice.Id);
+        Assert.True(aliceStatus.CanAccess);
+        Assert.True(aliceStatus.Played);
+        Assert.False(aliceStatus.InProgress);
+        Assert.Null(aliceStatus.ProgressPercent);
+        var bobStatus = Assert.Single(result, status => status.UserId == _bob.Id);
+        Assert.True(bobStatus.CanAccess);
+        Assert.False(bobStatus.Played);
+        Assert.True(bobStatus.InProgress);
+        Assert.Equal(50, bobStatus.ProgressPercent);
+
+        _episode.RunTimeTicks = 1000;
+        _server.Data[(_bob.Id, _episode.Id)] = FakeServer.Progress(250);
+        var episodeResult = As(_alice).GetWatchStatus(_episode.Id).Value!;
+        var bobEpisodeStatus = Assert.Single(episodeResult, status => status.UserId == _bob.Id);
+        Assert.True(bobEpisodeStatus.InProgress);
+        Assert.Equal(25, bobEpisodeStatus.ProgressPercent);
+
+        var charlieStatus = Assert.Single(result, status => status.UserId == charlie.Id);
+        Assert.False(charlieStatus.CanAccess);
+        Assert.False(charlieStatus.Played);
+        Assert.False(charlieStatus.InProgress);
+        Assert.Null(charlieStatus.ProgressPercent);
+    }
+
+    [Fact]
+    public void GetWatchStatus_ReportsPartialProgressAndRejectsUnsupportedItems()
+    {
+        _movie.RunTimeTicks = 1000;
+        _server.Data[(_bob.Id, _movie.Id)] = FakeServer.Progress(500);
+
+        var result = As(_alice).GetWatchStatus(_movie.Id).Value!;
+
+        var bobStatus = Assert.Single(result, status => status.UserId == _bob.Id);
+        Assert.True(bobStatus.CanAccess);
+        Assert.False(bobStatus.Played);
+        Assert.True(bobStatus.InProgress);
+        Assert.Equal(50, bobStatus.ProgressPercent);
+        Assert.Equal(400, Status(As(_alice).GetWatchStatus(_audio.Id)));
+        Assert.Equal(403, Status(As(null).GetWatchStatus(_movie.Id)));
     }
 
     [Fact]
