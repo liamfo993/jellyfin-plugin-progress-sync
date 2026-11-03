@@ -259,18 +259,23 @@
             min-height: 3em;
             align-items: center;
             padding: .55em .8em;
+            margin: 0;
             border: 1px solid var(--ps-border);
             border-radius: 8px;
             background: rgba(255, 255, 255, .035);
         }
 
+        #progressSyncConfigPage .ps-scope-option label {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: .65em;
+            margin: 0;
+        }
+
         #progressSyncConfigPage .ps-scope-option.is-selected {
             border-color: rgba(0, 164, 220, .55);
             background: rgba(0, 164, 220, .1);
-        }
-
-        #progressSyncConfigPage .ps-scope-option input {
-            margin-right: .55em;
         }
 
         #progressSyncConfigPage .ps-global-note {
@@ -417,17 +422,17 @@
                             </div>
                             <div class="fieldDescription">Choose what content should be included</div>
                             <div class="ps-scope-options">
-                                <div class="checkboxContainer">
-                                    <label class="ps-scope-option"><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
+                                <div class="checkboxContainer ps-scope-option">
+                                    <label><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
                                 </div>
-                                <div class="checkboxContainer">
-                                    <label class="ps-scope-option"><input id="psSeries" type="checkbox" is="emby-checkbox"><span>Series</span></label>
+                                <div class="checkboxContainer ps-scope-option">
+                                    <label><input id="psSeries" type="checkbox" is="emby-checkbox"><span>Series</span></label>
                                 </div>
-                                <div class="checkboxContainer">
-                                    <label class="ps-scope-option"><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
+                                <div class="checkboxContainer ps-scope-option">
+                                    <label><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
                                 </div>
-                                <div class="checkboxContainer">
-                                    <label class="ps-scope-option"><input id="psEverything" type="checkbox" is="emby-checkbox"><span>All media</span></label>
+                                <div class="checkboxContainer ps-scope-option">
+                                    <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>All media</span></label>
                                 </div>
                             </div>
                             <div class="ps-form-actions">
