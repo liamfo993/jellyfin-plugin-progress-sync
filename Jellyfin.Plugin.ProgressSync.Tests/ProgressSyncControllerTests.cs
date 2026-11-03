@@ -173,34 +173,47 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
-    public void GetRecentlyWatched_ReturnsLatestAccessiblePlayedMoviesAcrossUsers()
+    public void GetRecentlyWatchedUsers_ListsEnabledUsers()
     {
         var charlie = _server.AddUser("charlie");
+
+        var result = As(_alice).GetRecentlyWatchedUsers().Value!;
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(_alice.Id, result[0].Id);
+        Assert.Equal(_bob.Id, result[1].Id);
+        Assert.Equal(charlie.Id, result[2].Id);
+        Assert.Equal(403, Status(As(null).GetRecentlyWatchedUsers()));
+    }
+
+    [Fact]
+    public void GetUserRecentlyWatched_ReturnsRecentAccessibleMoviesAndEpisodes()
+    {
         var olderMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Older" });
         var newerMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Newer" });
+        var episode = _server.AddItem(new Episode { Id = Guid.NewGuid(), Name = "Episode", SeriesId = _series.Id });
         var hiddenMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Hidden" });
         var olderDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var newerDate = olderDate.AddDays(1);
-        _server.RecentMovies[_alice.Id] = [olderMovie, hiddenMovie];
-        _server.RecentMovies[_bob.Id] = [newerMovie];
-        _server.RecentMovies[charlie.Id] = [hiddenMovie];
+        _server.RecentItems[_alice.Id] = [olderMovie, episode, hiddenMovie];
+        _server.RecentItems[_bob.Id] = [newerMovie];
         _server.Data[(_alice.Id, olderMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = olderDate };
+        _server.Data[(_alice.Id, episode.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate };
         _server.Data[(_alice.Id, hiddenMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate };
         _server.Data[(_bob.Id, newerMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate };
-        _server.Data[(charlie.Id, hiddenMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate.AddDays(1) };
         _server.Hidden.Add((_bob.Id, hiddenMovie.Id));
-        _server.Hidden.Add((_alice.Id, newerMovie.Id));
 
-        var result = As(_bob).GetRecentlyWatched().Value!;
+        var result = As(_bob).GetUserRecentlyWatched(_alice.Id).Value!;
 
         Assert.Equal(2, result.Count);
-        Assert.Equal(newerMovie.Id, result[0].ItemId);
-        Assert.Equal(_bob.Username, result[0].UserName);
+        Assert.Equal(episode.Id, result[0].ItemId);
+        Assert.Equal("Episode", result[0].ItemType);
         Assert.Equal(newerDate, result[0].LastPlayedDate);
         Assert.Equal(olderMovie.Id, result[1].ItemId);
-        Assert.Equal(_alice.Username, result[1].UserName);
+        Assert.Equal("Movie", result[1].ItemType);
         Assert.Equal(olderDate, result[1].LastPlayedDate);
-        Assert.Equal(403, Status(As(null).GetRecentlyWatched()));
+        Assert.Equal(404, Status(As(_bob).GetUserRecentlyWatched(Guid.NewGuid())));
+        Assert.Equal(403, Status(As(null).GetUserRecentlyWatched(_alice.Id)));
     }
 
     [Fact]
@@ -210,7 +223,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
             .Select(index => (BaseItem)_server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Movie " + index }))
             .ToList();
         var startDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        _server.RecentMovies[_alice.Id] = movies;
+        _server.RecentItems[_alice.Id] = movies;
         for (var index = 0; index < movies.Count; index++)
         {
             _server.Data[(_alice.Id, movies[index].Id)] = new UserItemData
@@ -221,7 +234,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
             };
         }
 
-        var result = As(_alice).GetRecentlyWatched().Value!;
+        var result = As(_alice).GetUserRecentlyWatched(_alice.Id).Value!;
 
         Assert.Equal(25, result.Count);
         Assert.Equal(movies[29].Id, result[0].ItemId);

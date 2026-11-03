@@ -27,10 +27,17 @@ internal sealed class FakeServer
             .Setup(m => m.GetItemsResult(It.IsAny<InternalItemsQuery>()))
             .Returns((InternalItemsQuery query) =>
             {
-                var items = (RecentMovies.GetValueOrDefault(query.User?.Id ?? Guid.Empty) ?? [])
+                var items = (RecentItems.GetValueOrDefault(query.User?.Id ?? Guid.Empty) ?? [])
                     .Where(item => query.User is null
                         || (!Hidden.Contains((query.User.Id, item.Id))
                             && Get(query.User.Id, item.Id).Played))
+                    .Where(item => query.IncludeItemTypes.Length == 0
+                        || query.IncludeItemTypes.Contains(item switch
+                        {
+                            MediaBrowser.Controller.Entities.Movies.Movie => Jellyfin.Data.Enums.BaseItemKind.Movie,
+                            MediaBrowser.Controller.Entities.TV.Episode => Jellyfin.Data.Enums.BaseItemKind.Episode,
+                            _ => Jellyfin.Data.Enums.BaseItemKind.AggregateFolder
+                        }))
                     .OrderByDescending(item => query.User is null ? null : Get(query.User.Id, item.Id).LastPlayedDate)
                     .ToList();
                 return new QueryResult<BaseItem>(items
@@ -69,7 +76,7 @@ internal sealed class FakeServer
 
     public Dictionary<(Guid User, Guid Item), UserItemData> Data { get; } = [];
 
-    public Dictionary<Guid, List<BaseItem>> RecentMovies { get; } = [];
+    public Dictionary<Guid, List<BaseItem>> RecentItems { get; } = [];
 
     public List<(Guid User, Guid Item, UserDataSaveReason Reason)> Saves { get; } = [];
 

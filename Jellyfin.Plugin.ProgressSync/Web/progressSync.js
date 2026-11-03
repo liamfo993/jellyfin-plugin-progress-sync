@@ -152,28 +152,37 @@
     async function loadRecentlyWatched(section, list, message) {
         try {
             const apiClient = window.ApiClient;
-            const entries = await apiClient.getJSON(apiClient.getUrl('ProgressSync/RecentlyWatched'));
+            const users = await apiClient.getJSON(apiClient.getUrl('ProgressSync/RecentlyWatched/Users'));
             if (!section.isConnected) {
                 return;
             }
 
             list.innerHTML = '';
-            if (entries.length === 0) {
-                message.textContent = 'No recently watched movies.';
+            if (users.length === 0) {
+                message.textContent = 'No enabled users found.';
                 return;
             }
 
-            for (const entry of entries) {
+            for (const user of users) {
                 const row = document.createElement('li');
-                row.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5em 1em;padding:.6em 1em;border-bottom:1px solid rgba(255,255,255,.12);';
-                const title = document.createElement('a');
-                title.href = '#/details?id=' + encodeURIComponent(entry.ItemId);
-                title.className = 'button-link';
-                title.textContent = entry.ItemName;
-                const details = document.createElement('span');
-                details.textContent = 'Watched by ' + entry.UserName + ' · '
-                    + new Date(entry.LastPlayedDate).toLocaleString();
-                row.appendChild(title);
+                row.style.cssText = 'padding:.35em 1em;border-bottom:1px solid rgba(255,255,255,.12);';
+                const details = document.createElement('details');
+                const summary = document.createElement('summary');
+                summary.style.cssText = 'cursor:pointer;padding:.5em 0;';
+                summary.textContent = user.Name;
+                const history = document.createElement('ul');
+                history.style.cssText = 'list-style:none;padding:0 0 0 1em;margin:0;';
+                const historyMessage = document.createElement('p');
+                historyMessage.className = 'fieldDescription';
+                historyMessage.textContent = 'Expand to load watch history.';
+                details.appendChild(summary);
+                details.appendChild(history);
+                details.appendChild(historyMessage);
+                details.addEventListener('toggle', function () {
+                    if (details.open && details.dataset.loaded !== 'true' && details.dataset.loading !== 'true') {
+                        loadUserWatchHistory(user, details, history, historyMessage);
+                    }
+                });
                 row.appendChild(details);
                 list.appendChild(row);
             }
@@ -183,6 +192,43 @@
                 message.textContent = 'Could not load recently watched (' + errorText(err) + ').';
             }
             console.warn(LOG, 'could not load recently watched', err);
+        }
+    }
+
+    async function loadUserWatchHistory(user, details, list, message) {
+        details.dataset.loading = 'true';
+        message.textContent = 'Loading…';
+        try {
+            const apiClient = window.ApiClient;
+            const entries = await apiClient.getJSON(apiClient.getUrl(
+                'ProgressSync/RecentlyWatched/Users/' + encodeURIComponent(user.Id)));
+            list.innerHTML = '';
+            if (entries.length === 0) {
+                message.textContent = 'No recent watched movies or episodes.';
+                details.dataset.loaded = 'true';
+                return;
+            }
+
+            for (const entry of entries) {
+                const row = document.createElement('li');
+                row.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5em 1em;padding:.55em 0;border-bottom:1px solid rgba(255,255,255,.12);';
+                const title = document.createElement('a');
+                title.href = '#/details?id=' + encodeURIComponent(entry.ItemId);
+                title.className = 'button-link';
+                title.textContent = (entry.ItemType === 'Episode' ? 'Episode · ' : 'Movie · ') + entry.ItemName;
+                const date = document.createElement('span');
+                date.textContent = new Date(entry.LastPlayedDate).toLocaleString();
+                row.appendChild(title);
+                row.appendChild(date);
+                list.appendChild(row);
+            }
+            message.textContent = '';
+            details.dataset.loaded = 'true';
+        } catch (err) {
+            message.textContent = 'Could not load watch history (' + errorText(err) + ').';
+            console.warn(LOG, 'could not load user watch history', err);
+        } finally {
+            delete details.dataset.loading;
         }
     }
 

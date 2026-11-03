@@ -30,7 +30,6 @@ namespace Jellyfin.Plugin.ProgressSync.Api;
 public sealed class ProgressSyncController : ControllerBase
 {
     private const int RecentlyWatchedLimit = 25;
-    private const int RecentlyWatchedPageSize = 25;
 
     // Jellyfin.Api.Constants.InternalClaimTypes.UserId; that assembly is not available to plugins.
     private const string UserIdClaimType = "Jellyfin-UserId";
@@ -162,15 +161,41 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Lists the 25 most recent completed movie watches across enabled users that the caller can access.
+    /// Lists the enabled users available in the homepage watch history.
     /// </summary>
-    /// <response code="200">Recently watched movies returned.</response>
+    /// <response code="200">Users returned.</response>
     /// <response code="403">The caller is not a user.</response>
-    /// <returns>Movies, watchers, and their last-played dates, newest first.</returns>
-    [HttpGet("RecentlyWatched")]
+    /// <returns>Enabled users ordered by name.</returns>
+    [HttpGet("RecentlyWatched/Users")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public ActionResult<IReadOnlyList<RecentlyWatchedMovieDto>> GetRecentlyWatched()
+    public ActionResult<IReadOnlyList<RecentlyWatchedUserDto>> GetRecentlyWatchedUsers()
+    {
+        if (GetCurrentUser() is null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        return _userManager.GetUsers()
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            .Select(user => new RecentlyWatchedUserDto(user.Id, user.Username))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Lists a user's 25 most recent completed movie and episode watches that the caller can access.
+    /// </summary>
+    /// <param name="userId">The user whose watch history to list.</param>
+    /// <response code="200">Watch history returned.</response>
+    /// <response code="403">The caller is not a user.</response>
+    /// <response code="404">The selected user is not found or is disabled.</response>
+    /// <returns>The user's items, newest first.</returns>
+    [HttpGet("RecentlyWatched/Users/{userId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<IReadOnlyList<RecentlyWatchedItemDto>> GetUserRecentlyWatched([FromRoute] Guid userId)
     {
         var caller = GetCurrentUser();
         if (caller is null)
@@ -178,65 +203,57 @@ public sealed class ProgressSyncController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden);
         }
 
-        var watchedMovies = new List<RecentlyWatchedMovieDto>();
-        foreach (var user in _userManager.GetUsers().Where(user => !user.HasPermission(PermissionKind.IsDisabled)))
+        var user = GetEnabledUser(userId);
+        if (user is null)
         {
-            var userWatchCount = 0;
-            var startIndex = 0;
-            while (userWatchCount < RecentlyWatchedLimit)
+            return NotFound();
+        }
+
+        var items = new List<RecentlyWatchedItemDto>(RecentlyWatchedLimit);
+        var startIndex = 0;
+        while (items.Count < RecentlyWatchedLimit)
+        {
+            var result = _libraryManager.GetItemsResult(new InternalItemsQuery(user)
             {
-                var result = _libraryManager.GetItemsResult(new InternalItemsQuery(user)
+                Recursive = true,
+                Limit = RecentlyWatchedLimit,
+                StartIndex = startIndex,
+                IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Episode],
+                IsPlayed = true,
+                IsVirtualItem = false,
+                EnableTotalRecordCount = false,
+                OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)]
+            });
+            if (result.Items.Count == 0)
+            {
+                break;
+            }
+
+            startIndex += result.Items.Count;
+            var playedItems = result.Items.Where(item => item is Movie or Episode).ToList();
+            var userData = _userDataManager.GetUserDataBatch(playedItems, user);
+            foreach (var item in playedItems)
+            {
+                var lastPlayedDate = userData.GetValueOrDefault(item.Id)?.LastPlayedDate;
+                if (lastPlayedDate is null || GetVisibleItem(item.Id, caller) is null)
                 {
-                    Recursive = true,
-                    Limit = RecentlyWatchedPageSize,
-                    StartIndex = startIndex,
-                    IncludeItemTypes = [BaseItemKind.Movie],
-                    IsPlayed = true,
-                    IsVirtualItem = false,
-                    EnableTotalRecordCount = false,
-                    OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)]
-                });
-                if (result.Items.Count == 0)
-                {
-                    break;
+                    continue;
                 }
 
-                startIndex += result.Items.Count;
-                var movies = result.Items.OfType<Movie>().ToList();
-                var userData = _userDataManager.GetUserDataBatch(movies, user);
-                foreach (var movie in movies)
-                {
-                    var lastPlayedDate = userData.GetValueOrDefault(movie.Id)?.LastPlayedDate;
-                    if (lastPlayedDate is null || GetVisibleItem(movie.Id, caller) is null)
-                    {
-                        continue;
-                    }
-
-                    watchedMovies.Add(new RecentlyWatchedMovieDto(
-                        movie.Id,
-                        movie.Name,
-                        user.Username,
-                        lastPlayedDate.Value));
-                    userWatchCount++;
-                    if (userWatchCount == RecentlyWatchedLimit)
-                    {
-                        break;
-                    }
-                }
-
-                if (result.Items.Count < RecentlyWatchedPageSize)
+                items.Add(new RecentlyWatchedItemDto(item.Id, item.Name, item is Episode ? "Episode" : "Movie", lastPlayedDate.Value));
+                if (items.Count == RecentlyWatchedLimit)
                 {
                     break;
                 }
             }
+
+            if (result.Items.Count < RecentlyWatchedLimit)
+            {
+                break;
+            }
         }
 
-        return watchedMovies
-            .OrderByDescending(movie => movie.LastPlayedDate)
-            .ThenBy(movie => movie.ItemName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(movie => movie.UserName, StringComparer.OrdinalIgnoreCase)
-            .Take(RecentlyWatchedLimit)
-            .ToList();
+        return items;
     }
 
     /// <summary>
