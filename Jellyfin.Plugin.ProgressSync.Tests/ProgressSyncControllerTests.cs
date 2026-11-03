@@ -191,7 +191,14 @@ public sealed class ProgressSyncControllerTests : IDisposable
     {
         var olderMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Older" });
         var newerMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Newer" });
-        var episode = _server.AddItem(new Episode { Id = Guid.NewGuid(), Name = "Episode", SeriesId = _series.Id });
+        var episode = _server.AddItem(new Episode
+        {
+            Id = Guid.NewGuid(),
+            Name = "Pilot",
+            SeriesId = _series.Id,
+            ParentIndexNumber = 1,
+            IndexNumber = 2
+        });
         var hiddenMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Hidden" });
         var olderDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var newerDate = olderDate.AddDays(1);
@@ -207,6 +214,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
 
         Assert.Equal(2, result.Count);
         Assert.Equal(episode.Id, result[0].ItemId);
+        Assert.Equal("Show - S01E02 - Pilot", result[0].ItemName);
         Assert.Equal("Episode", result[0].ItemType);
         Assert.Equal(newerDate, result[0].LastPlayedDate);
         Assert.Equal(olderMovie.Id, result[1].ItemId);

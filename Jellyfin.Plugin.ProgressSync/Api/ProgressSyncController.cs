@@ -240,7 +240,10 @@ public sealed class ProgressSyncController : ControllerBase
                     continue;
                 }
 
-                items.Add(new RecentlyWatchedItemDto(item.Id, item.Name, item is Episode ? "Episode" : "Movie", lastPlayedDate.Value));
+                var itemName = item is Episode episode
+                    ? FormatEpisodeName(episode, caller)
+                    : item.Name;
+                items.Add(new RecentlyWatchedItemDto(item.Id, itemName, item is Episode ? "Episode" : "Movie", lastPlayedDate.Value));
                 if (items.Count == RecentlyWatchedLimit)
                 {
                     break;
@@ -254,6 +257,41 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         return items;
+    }
+
+    private string FormatEpisodeName(Episode episode, User caller)
+    {
+        var parts = new List<string>(3);
+        var seriesName = episode.SeriesName;
+        if (string.IsNullOrWhiteSpace(seriesName) && episode.SeriesId != Guid.Empty)
+        {
+            seriesName = GetVisibleItem(episode.SeriesId, caller)?.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(seriesName))
+        {
+            parts.Add(seriesName);
+        }
+
+        if (episode.ParentIndexNumber.HasValue && episode.IndexNumber.HasValue)
+        {
+            parts.Add(string.Create(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"S{episode.ParentIndexNumber.Value:00}E{episode.IndexNumber.Value:00}"));
+        }
+        else if (episode.IndexNumber.HasValue)
+        {
+            parts.Add(string.Create(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"Episode {episode.IndexNumber.Value}"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(episode.Name))
+        {
+            parts.Add(episode.Name);
+        }
+
+        return string.Join(" - ", parts);
     }
 
     /// <summary>
