@@ -31,6 +31,8 @@ export default function (view) {
         NotifyPlaybackStopped: '#psNotifyPlaybackStopped'
     };
 
+    LibraryMenu.setTabs('WatchHistory', 2, getTabs);
+
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 2, getTabs);
         loadSettings();

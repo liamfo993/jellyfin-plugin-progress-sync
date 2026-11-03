@@ -17,6 +17,8 @@ export default function (view) {
     const status = page.querySelector('#psHistoryStatus');
     const userCount = page.querySelector('#psHistoryUserCount');
 
+    LibraryMenu.setTabs('WatchHistory', 0, getTabs);
+
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 0, getTabs);
         loadUsers();

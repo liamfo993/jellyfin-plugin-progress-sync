@@ -22,6 +22,8 @@ export default function (view) {
     const saveStatus = page.querySelector('#psStreamSaveStatus');
     const saveButton = page.querySelector('#psSaveStreamLimits');
 
+    LibraryMenu.setTabs('WatchHistory', 1, getTabs);
+
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 1, getTabs);
         loadLimits();
@@ -67,6 +69,11 @@ export default function (view) {
 
             const control = document.createElement('div');
             control.className = 'ps-limit-control';
+            const limitField = document.createElement('label');
+            limitField.className = 'ps-limit-field';
+            const limitLabel = document.createElement('span');
+            limitLabel.className = 'ps-limit-field-label';
+            limitLabel.textContent = 'Maximum streams';
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
@@ -77,7 +84,15 @@ export default function (view) {
             input.dataset.userId = user.Id;
             input.className = 'emby-input ps-limit-input';
             input.setAttribute('aria-label', 'Maximum concurrent streams for ' + user.Name);
+            limitField.append(limitLabel, input);
+
+            const policyField = document.createElement('label');
+            policyField.className = 'ps-limit-field';
+            const policyLabel = document.createElement('span');
+            policyLabel.className = 'ps-limit-field-label';
+            policyLabel.textContent = 'When over limit';
             const policy = document.createElement('select');
+            policy.setAttribute('is', 'emby-select');
             policy.className = 'emby-select ps-limit-policy';
             policy.setAttribute('aria-label', 'Stream to stop for ' + user.Name);
             [
@@ -90,13 +105,15 @@ export default function (view) {
                 policy.appendChild(element);
             });
             policy.value = setting && setting.StopOldest ? 'oldest' : 'newest';
+            policyField.append(policyLabel, policy);
             const description = document.createElement('span');
             description.className = 'ps-limit-description';
             setLimitDescription(description, input.value);
             input.addEventListener('input', function () {
                 setLimitDescription(description, input.value);
             });
-            control.append(input, policy, description);
+            control.append(limitField, policyField, description);
+            window.CustomElements.upgradeSubtree(policyField);
             card.append(userDetails, control);
             fragment.appendChild(card);
         });

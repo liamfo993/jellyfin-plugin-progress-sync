@@ -12,6 +12,8 @@ function getTabs() {
 }
 
 export default function (view) {
+    LibraryMenu.setTabs('WatchHistory', 3, getTabs);
+
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 3, getTabs);
     });
