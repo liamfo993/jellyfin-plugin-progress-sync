@@ -57,6 +57,21 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "PlaybackLimits",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.PlaybackLimits.html"
+            },
+            new PluginPageInfo
+            {
+                Name = "PlaybackLimits.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.PlaybackLimits.js"
+            },
+            new PluginPageInfo
+            {
+                Name = "ProgressSync.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.ProgressSync.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "ProgressSync",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
             }

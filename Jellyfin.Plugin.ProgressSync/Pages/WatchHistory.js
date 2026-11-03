@@ -4,8 +4,9 @@ function configurationPageUrl(name) {
 
 function getTabs() {
     return [
-        { href: configurationPageUrl('WatchHistory'), name: 'Dashboard' },
-        { href: configurationPageUrl('ProgressSync'), name: 'Settings' }
+        { href: configurationPageUrl('WatchHistory'), name: 'Watch history' },
+        { href: configurationPageUrl('PlaybackLimits'), name: 'Playback limits' },
+        { href: configurationPageUrl('ProgressSync'), name: 'Progress sync' }
     ];
 }
 

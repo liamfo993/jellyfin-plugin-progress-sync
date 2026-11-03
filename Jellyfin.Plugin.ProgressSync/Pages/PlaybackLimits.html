@@ -1,0 +1,191 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/PlaybackLimits.js">
+    <style>
+        #progressSyncPlaybackLimits {
+            --ps-accent: #00a4dc;
+            --ps-card: rgba(255, 255, 255, .055);
+            --ps-border: rgba(255, 255, 255, .1);
+        }
+
+        #progressSyncPlaybackLimits [hidden] {
+            display: none !important;
+        }
+
+        #progressSyncPlaybackLimits .ps-hero,
+        #progressSyncPlaybackLimits .ps-panel,
+        #progressSyncPlaybackLimits .ps-limit-card,
+        #progressSyncPlaybackLimits .ps-info-card {
+            border: 1px solid var(--ps-border);
+            border-radius: 12px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncPlaybackLimits .ps-hero {
+            padding: 1.5em;
+            margin-bottom: 1.25em;
+            border-color: rgba(0, 164, 220, .24);
+            background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
+        }
+
+        #progressSyncPlaybackLimits .ps-hero h1 {
+            margin: 0 0 .4em;
+            font-size: 1.8em;
+        }
+
+        #progressSyncPlaybackLimits .ps-guide {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: .85em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncPlaybackLimits .ps-info-card {
+            padding: 1em 1.1em;
+        }
+
+        #progressSyncPlaybackLimits .ps-info-card strong {
+            display: block;
+            margin-bottom: .35em;
+        }
+
+        #progressSyncPlaybackLimits .ps-panel {
+            padding: 1.25em;
+        }
+
+        #progressSyncPlaybackLimits .ps-panel-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75em;
+            margin-bottom: 1em;
+        }
+
+        #progressSyncPlaybackLimits .ps-panel-header h2 {
+            margin: 0 0 .25em;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-list {
+            display: grid;
+            gap: .65em;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-card {
+            display: grid;
+            grid-template-columns: minmax(170px, 1fr) minmax(210px, .7fr);
+            align-items: center;
+            gap: 1em;
+            padding: .9em 1em;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-user {
+            display: flex;
+            align-items: center;
+            gap: .8em;
+            min-width: 0;
+        }
+
+        #progressSyncPlaybackLimits .ps-user-avatar {
+            display: grid;
+            width: 2.5em;
+            height: 2.5em;
+            flex: 0 0 2.5em;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(0, 164, 220, .2);
+            color: var(--ps-accent);
+            font-weight: 700;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-name {
+            overflow-wrap: anywhere;
+            font-weight: 600;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-control {
+            display: grid;
+            grid-template-columns: minmax(90px, 135px) 1fr;
+            align-items: center;
+            gap: .75em;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-input {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        #progressSyncPlaybackLimits .ps-limit-description {
+            color: var(--secondary-text-color, #aaa);
+            font-size: .9em;
+        }
+
+        #progressSyncPlaybackLimits .ps-status {
+            min-height: 1.5em;
+            margin: 1em 0;
+        }
+
+        #progressSyncPlaybackLimits .ps-empty {
+            padding: 1.5em;
+            border: 1px dashed var(--ps-border);
+            border-radius: 8px;
+            color: var(--secondary-text-color, #aaa);
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            #progressSyncPlaybackLimits .ps-limit-card {
+                grid-template-columns: 1fr;
+                gap: .6em;
+            }
+
+            #progressSyncPlaybackLimits .ps-limit-control {
+                grid-template-columns: minmax(90px, 125px) 1fr;
+                padding-left: 3.3em;
+            }
+        }
+    </style>
+    <div id="progressSyncPlaybackLimits" data-role="content">
+        <div class="content-primary">
+            <header class="ps-hero">
+                <h1>Playback limits</h1>
+                <p class="fieldDescription">Set how many devices can play at the same time for each user. If playback exceeds the limit, the newest stream or streams are stopped until the user is back within the limit.</p>
+            </header>
+
+            <div class="ps-guide" aria-label="How playback limits work">
+                <div class="ps-info-card">
+                    <strong>Choose a limit per user</strong>
+                    <span class="fieldDescription">A limit applies to that user's active playback sessions across their devices.</span>
+                </div>
+                <div class="ps-info-card">
+                    <strong>0 means unlimited</strong>
+                    <span class="fieldDescription">Set a user's value to zero to allow any number of concurrent streams.</span>
+                </div>
+                <div class="ps-info-card">
+                    <strong>Newest stream is stopped</strong>
+                    <span class="fieldDescription">When playback exceeds the limit, the newest session or sessions are stopped first.</span>
+                </div>
+            </div>
+
+            <section class="ps-panel">
+                <div class="ps-panel-header">
+                    <div>
+                        <h2 class="sectionTitle">Limits by user</h2>
+                        <div class="fieldDescription">Choose a whole number from 0 to 100. Changes take effect when saved.</div>
+                    </div>
+                    <button is="emby-button" type="button" class="raised" id="psRefreshLimits">
+                        <span>Reload users</span>
+                    </button>
+                </div>
+                <div id="psLimitsStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                <form id="psStreamLimitsForm">
+                    <div id="psStreamLimits" class="ps-limit-list"></div>
+                    <button id="psSaveStreamLimits" type="submit" class="emby-button button-submit">
+                        <span>Save playback limits</span>
+                    </button>
+                    <div id="psStreamSaveStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                </form>
+            </section>
+        </div>
+    </div>
+</div>

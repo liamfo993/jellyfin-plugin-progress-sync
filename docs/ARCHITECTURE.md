@@ -84,14 +84,16 @@ refreshes part of itself when user data changes.
 `ConcurrentStreamLimitService` listens for playback-start events and compares active playback
 sessions against each user's persisted limit. It serializes decisions, stops the newest session or
 sessions with Jellyfin's playstate command until the user is within the limit, and logs enforcement
-results. A zero or missing limit means unlimited. Administrators manage per-user limits from the
-plugin settings page.
+results. A zero or missing limit means unlimited. Administrators manage per-user limits on the
+Playback limits tab. Watch history, playback limits, and progress sync are separate tabs in the
+plugin page navigation. The Progress sync tab groups one-time copies, continuous links, and global
+profiles into separate guided sections.
 
 ## REST API
 
 All routes start with `/ProgressSync`. User routes act on the caller only; no route accepts a
 target user. The elevated admin routes provide an explicit source/target workflow on the plugin
-settings page and verify that both users can access the selected item before copying or linking it.
+Progress sync tab and verify that both users can access the selected item before copying or linking it.
 
 | Route | Access | Purpose |
 |---|---|---|
@@ -104,7 +106,7 @@ settings page and verify that both users can access the selected item before cop
 | `POST /Items/{itemId}/Links` | user | Create or update a link, then copy the partner's progress |
 | `DELETE /Links/{linkId}` | user | Remove a link the caller may remove (404 otherwise) |
 | `GET /ClientScript` | anonymous | The web client script |
-| `GET /Admin/Overview` | admin | Integration status and all links, for the dashboard page |
+| `GET /Admin/Overview` | admin | Integration status and all links, for the Progress sync tab |
 | `GET /Admin/Items` | admin | Search movies, series, and audio for sync setup |
 | `POST /Admin/Sync` | admin | Copy once or create a one-way/two-way continuous link |
 | `DELETE /Admin/Links/{linkId}` | admin | Deactivate any continuous link |

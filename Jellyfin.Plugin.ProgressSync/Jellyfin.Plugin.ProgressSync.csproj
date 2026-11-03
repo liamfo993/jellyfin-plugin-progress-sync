@@ -34,6 +34,12 @@
     <EmbeddedResource Include="Pages\WatchHistory.html" />
     <None Remove="Pages\WatchHistory.js" />
     <EmbeddedResource Include="Pages\WatchHistory.js" />
+    <None Remove="Pages\PlaybackLimits.html" />
+    <EmbeddedResource Include="Pages\PlaybackLimits.html" />
+    <None Remove="Pages\PlaybackLimits.js" />
+    <EmbeddedResource Include="Pages\PlaybackLimits.js" />
+    <None Remove="Pages\ProgressSync.js" />
+    <EmbeddedResource Include="Pages\ProgressSync.js" />
   </ItemGroup>
 
   <ItemGroup>

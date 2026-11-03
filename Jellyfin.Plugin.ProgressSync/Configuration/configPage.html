@@ -34,23 +34,164 @@
         #progressSyncConfigPage button > span {
             color: #000 !important;
         }
+
+        #progressSyncConfigPage {
+            --ps-accent: #00a4dc;
+            --ps-card: rgba(255, 255, 255, .055);
+            --ps-border: rgba(255, 255, 255, .1);
+        }
+
+        #progressSyncConfigPage [hidden] {
+            display: none !important;
+        }
+
+        #progressSyncConfigPage .ps-settings-hero,
+        #progressSyncConfigPage .ps-settings-section {
+            margin-bottom: 1.25em;
+            border: 1px solid var(--ps-border);
+            border-radius: 12px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncConfigPage .ps-settings-hero {
+            padding: 1.5em;
+            border-color: rgba(0, 164, 220, .24);
+            background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
+        }
+
+        #progressSyncConfigPage .ps-settings-hero h1 {
+            margin: 0 0 .4em;
+            font-size: 1.8em;
+        }
+
+        #progressSyncConfigPage .ps-settings-guide {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: .75em;
+            margin-top: 1.2em;
+        }
+
+        #progressSyncConfigPage .ps-guide-card {
+            padding: .85em 1em;
+            border: 1px solid var(--ps-border);
+            border-radius: 9px;
+            background: rgba(0, 0, 0, .12);
+        }
+
+        #progressSyncConfigPage .ps-guide-card strong {
+            display: block;
+            margin-bottom: .3em;
+        }
+
+        #progressSyncConfigPage .ps-section-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: .85em;
+            padding: 1.1em 1.25em;
+            border-bottom: 1px solid var(--ps-border);
+        }
+
+        #progressSyncConfigPage .ps-section-number {
+            display: grid;
+            width: 2em;
+            height: 2em;
+            flex: 0 0 2em;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(0, 164, 220, .2);
+            color: var(--ps-accent);
+            font-weight: 700;
+        }
+
+        #progressSyncConfigPage .ps-section-heading h2 {
+            margin: 0 0 .3em;
+            font-size: 1.25em;
+        }
+
+        #progressSyncConfigPage .ps-section-content {
+            padding: 1em 1.25em 1.25em;
+        }
+
+        #progressSyncConfigPage .ps-mode-guide {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: .65em;
+            margin: .75em 0 1.1em;
+        }
+
+        #progressSyncConfigPage .ps-mode-card {
+            padding: .8em .9em;
+            border-left: 3px solid var(--ps-accent);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, .04);
+        }
+
+        #progressSyncConfigPage .ps-mode-card strong {
+            display: block;
+            margin-bottom: .25em;
+        }
+
+        #progressSyncConfigPage .ps-table-scroll {
+            overflow-x: auto;
+        }
+
+        #progressSyncConfigPage .ps-settings-section form {
+            max-width: 760px;
+        }
+
+        #progressSyncConfigPage .ps-settings-section table {
+            min-width: 620px;
+        }
+
+        #progressSyncConfigPage .ps-status {
+            min-height: 1.5em;
+        }
+
+        @media (max-width: 600px) {
+            #progressSyncConfigPage .ps-settings-hero {
+                padding: 1.1em;
+            }
+
+            #progressSyncConfigPage .ps-section-heading,
+            #progressSyncConfigPage .ps-section-content {
+                padding-right: .9em;
+                padding-left: .9em;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs" data-controller="__plugin/ProgressSync.js" data-ps-tab-index="2" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
-                <h2 class="sectionTitle">Progress Sync</h2>
-                <p class="fieldDescription">
-                    Manage server-wide one-way or two-way progress sync and review active syncs.
-                </p>
-                <div id="psFtStatus" style="margin: 1em 0;"></div>
-                <h3 class="sectionTitle">Copy or sync two users</h3>
-                <p class="fieldDescription">
-                    Choose a library item and users. One-time copy does not create or change links. Follow continuously copies
-                    source progress to target; two-way continuously syncs both users. Creating a continuous sync
-                    also copies the current progress from source to target.
-                </p>
+                <header class="ps-settings-hero">
+                    <h1>Progress sync</h1>
+                    <p class="fieldDescription">Copy watch progress once, or keep users in sync automatically. These controls affect playback position and watched status—not ratings, favorites, or subtitles.</p>
+                    <div class="ps-settings-guide" aria-label="Progress sync modes">
+                        <div class="ps-guide-card">
+                            <strong>Copy once</strong>
+                            <span class="fieldDescription">Make a one-time copy from one user to another.</span>
+                        </div>
+                        <div class="ps-guide-card">
+                            <strong>Continuous one-way</strong>
+                            <span class="fieldDescription">Keep the target updated from the source.</span>
+                        </div>
+                        <div class="ps-guide-card">
+                            <strong>Continuous two-way</strong>
+                            <span class="fieldDescription">Keep both users' progress in sync.</span>
+                        </div>
+                    </div>
+                </header>
+                <div id="psFtStatus" class="ps-status" role="status" aria-live="polite"></div>
+                <section class="ps-settings-section">
+                    <div class="ps-section-heading">
+                        <span class="ps-section-number" aria-hidden="true">1</span>
+                        <div>
+                            <h2>Copy progress or start a sync</h2>
+                            <div class="fieldDescription">Pick a title, choose who progress comes from and goes to, then select how long the change should apply.</div>
+                        </div>
+                    </div>
+                    <div class="ps-section-content">
                 <form id="psSetupForm">
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Find a movie, series, or audio item</label>
@@ -73,20 +214,43 @@
                         <select id="psTargetUser" is="emby-select" class="emby-select" required></select>
                     </div>
                     <div class="selectContainer">
-                        <label class="selectLabel" for="psSyncMode">Sync duration and direction</label>
+                        <label class="selectLabel" for="psSyncMode">How should progress be applied?</label>
                         <select id="psSyncMode" is="emby-select" class="emby-select">
-                            <option value="">One-time copy only</option>
-                            <option value="Follow">Continuous one-way (source to target)</option>
-                            <option value="Mirror">Continuous two-way</option>
+                            <option value="">Copy once (does not keep syncing)</option>
+                            <option value="Follow">Keep syncing one way (source to target)</option>
+                            <option value="Mirror">Keep both users in sync</option>
                         </select>
+                    </div>
+                    <div class="ps-mode-guide" aria-label="Sync behavior">
+                        <div class="ps-mode-card">
+                            <strong>Copy once</strong>
+                            <span class="fieldDescription">Copies the current progress and creates no ongoing sync.</span>
+                        </div>
+                        <div class="ps-mode-card">
+                            <strong>One-way</strong>
+                            <span class="fieldDescription">Creates an ongoing source → target sync and copies current progress.</span>
+                        </div>
+                        <div class="ps-mode-card">
+                            <strong>Two-way</strong>
+                            <span class="fieldDescription">Creates an ongoing sync in both directions and copies current progress.</span>
+                        </div>
                     </div>
                     <button id="psApplySync" type="submit" class="emby-button button-submit">
                         <span>Apply</span>
                     </button>
-                    <div id="psSetupStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
+                    <div id="psSetupStatus" class="ps-status" role="status" aria-live="polite" style="margin: 1em 0;"></div>
                 </form>
-                <h3 class="sectionTitle">Active continuous syncs</h3>
-                <p class="fieldDescription">Item links and global profiles are listed here. Deactivate any row to stop its future automatic progress updates.</p>
+                    </div>
+                </section>
+                <section class="ps-settings-section">
+                    <div class="ps-section-heading">
+                        <span class="ps-section-number" aria-hidden="true">2</span>
+                        <div>
+                            <h2>Active continuous syncs</h2>
+                            <div class="fieldDescription">Review ongoing title-specific and global syncs. Deactivate a row to stop future automatic updates.</div>
+                        </div>
+                    </div>
+                    <div class="ps-section-content ps-table-scroll">
                 <table class="detailTable" style="width: 100%;">
                     <thead>
                         <tr>
@@ -99,12 +263,17 @@
                     </thead>
                     <tbody id="psLinks"></tbody>
                 </table>
-                <h3 class="sectionTitle">Global continuous sync profiles</h3>
-                <p class="fieldDescription">
-                    Add one or more profiles, each with its own users, direction, and media types.
-                    Global profiles sync future progress changes and do not copy existing progress.
-                    They appear alongside item-specific links in the active continuous syncs list above.
-                </p>
+                    </div>
+                </section>
+                <section class="ps-settings-section">
+                    <div class="ps-section-heading">
+                        <span class="ps-section-number" aria-hidden="true">3</span>
+                        <div>
+                            <h2>Sync progress across libraries</h2>
+                            <div class="fieldDescription">Create a profile that applies to selected media types for two users. It syncs future changes only and does not copy existing progress.</div>
+                        </div>
+                    </div>
+                    <div class="ps-section-content">
                 <form id="psGlobalForm">
                     <div class="selectContainer">
                         <label class="selectLabel" for="psGlobalSourceUser">Global source user</label>
@@ -131,33 +300,15 @@
                         <label><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
                     </div>
                     <div class="checkboxContainer">
-                        <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>Everything</span></label>
+                        <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>All supported media</span></label>
                     </div>
                     <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
                         <span>Add global profile</span>
                     </button>
-                    <div id="psGlobalStatus" role="status" style="margin: 1em 0;"></div>
+                    <div id="psGlobalStatus" class="ps-status" role="status" aria-live="polite" style="margin: 1em 0;"></div>
                 </form>
-                <h3 class="sectionTitle">Concurrent playback limits</h3>
-                <p class="fieldDescription">
-                    Set the maximum number of simultaneous playback sessions for each user. When a user starts a stream over their limit,
-                    Progress Sync stops that newly started stream. Set a limit to 0 for no limit.
-                </p>
-                <form id="psStreamLimitsForm">
-                    <table class="detailTable" style="width: 100%;">
-                        <thead>
-                            <tr>
-                                <th class="detailTableHeaderCell">User</th>
-                                <th class="detailTableHeaderCell">Maximum concurrent streams (0 = unlimited)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="psStreamLimits"></tbody>
-                    </table>
-                    <button id="psSaveStreamLimits" type="submit" class="emby-button button-submit">
-                        <span>Save stream limits</span>
-                    </button>
-                    <div id="psStreamLimitsStatus" role="status" aria-live="polite" style="margin: 1em 0;"></div>
-                </form>
+                    </div>
+                </section>
             </div>
         </div>
         <script type="text/javascript">
@@ -206,67 +357,6 @@
                         });
                         select.value = selectedUserId;
                     });
-                }
-
-                function loadStreamLimits(data) {
-                    var limitsByUser = new Map(data.Limits.map(function (limit) {
-                        return [limit.UserId, limit.MaxConcurrentStreams];
-                    }));
-                    var body = page.querySelector('#psStreamLimits');
-                    body.replaceChildren();
-                    data.Users.forEach(function (user) {
-                        var row = document.createElement('tr');
-                        var name = document.createElement('td');
-                        name.className = 'detailTableBodyCell';
-                        name.textContent = user.Name;
-                        var limitCell = document.createElement('td');
-                        limitCell.className = 'detailTableBodyCell';
-                        var input = document.createElement('input');
-                        input.type = 'number';
-                        input.min = '0';
-                        input.max = '100';
-                        input.step = '1';
-                        input.value = String(limitsByUser.get(user.Id) || 0);
-                        input.dataset.userId = user.Id;
-                        input.className = 'emby-input ps-stream-limit-input';
-                        input.setAttribute('aria-label', 'Maximum concurrent streams for ' + user.Name);
-                        limitCell.appendChild(input);
-                        row.append(name, limitCell);
-                        body.appendChild(row);
-                    });
-                }
-
-                async function saveStreamLimits(event) {
-                    event.preventDefault();
-                    var button = page.querySelector('#psSaveStreamLimits');
-                    var status = page.querySelector('#psStreamLimitsStatus');
-                    var limits = [];
-                    for (var input of page.querySelectorAll('.ps-stream-limit-input')) {
-                        var value = Number(input.value);
-                        if (!Number.isInteger(value) || value < 0 || value > 100) {
-                            status.textContent = 'Enter a whole number between 0 and 100 for every user.';
-                            return;
-                        }
-                        if (value > 0) {
-                            limits.push({ UserId: input.dataset.userId, MaxConcurrentStreams: value });
-                        }
-                    }
-
-                    button.disabled = true;
-                    status.textContent = 'Saving stream limits...';
-                    try {
-                        await ApiClient.ajax({
-                            type: 'POST',
-                            url: ApiClient.getUrl('ProgressSync/Admin/StreamLimits'),
-                            data: JSON.stringify(limits),
-                            contentType: 'application/json'
-                        });
-                        status.textContent = 'Concurrent stream limits saved.';
-                    } catch (err) {
-                        status.textContent = 'Could not save stream limits (' + errorText(err) + ').';
-                    } finally {
-                        button.disabled = false;
-                    }
                 }
 
                 function updateEverything() {
@@ -388,12 +478,10 @@
                 function refreshOverview() {
                     return Promise.all([
                         ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/Overview')),
-                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings')),
-                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/StreamLimits'))
+                        ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/GlobalSettings'))
                     ]).then(function (results) {
                         var overview = results[0];
                         loadGlobalSettings(results[1]);
-                        loadStreamLimits(results[2]);
                         renderStatus(overview);
                         renderLinks(overview.Links);
                     });
@@ -697,8 +785,6 @@
                         button.disabled = false;
                     }
                 });
-
-                page.querySelector('#psStreamLimitsForm').addEventListener('submit', saveStreamLimits);
 
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();

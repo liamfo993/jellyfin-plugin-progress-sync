@@ -76,17 +76,18 @@ Links pass changes along. If Ann follows Ben and Ben has a two-way link with Cle
 reaches Ben and then Ann.
 
 Syncing runs on the server, so progress made in any Jellyfin app is synced. The button itself is
-only in the web client. Admins can also set up one-time copies and continuous links between users,
-see which links are active, and deactivate them under **Dashboard → Plugins → Progress Sync → Settings**.
+only in the web client. Admins can set up one-time copies and continuous links between users,
+review active links, and deactivate them from the **Progress sync** tab. Use the **Playback limits** tab to configure
+per-user concurrent playback caps. These tabs are available from the Progress Sync page in the
+Plugins menu.
 
 Admins can also create multiple global sync profiles, each with its own source and target users,
 one-way or two-way direction, and movie, series, and music scopes. Profiles appear in the active
 continuous sync list and can be deactivated individually. Global profiles apply to future progress
 changes; they do not copy existing progress when created.
 
-Admins can limit concurrent streams per user from **Dashboard → Plugins → Progress Sync → Settings**.
 Set a user's limit to **0** for unlimited streams. When a user starts playback over their limit,
-the newest playback session is stopped and the action is recorded in the Jellyfin log.
+the newest playback session or sessions are stopped and the action is recorded in the Jellyfin log.
 
 ## Privacy
 
@@ -111,7 +112,7 @@ server log.
 
 ## Troubleshooting
 
-- **No sync button:** check **Dashboard → Plugins → Progress Sync → Settings**. If the web client integration
+- **No sync button:** open the **Progress sync** tab. If the web client integration
   is inactive, install or enable File Transformation and restart Jellyfin. Then reload the browser
   once with Ctrl+Shift+R (Cmd+Shift+R on macOS).
 - **An action fails:** look for `Progress Sync` lines in the Jellyfin log and
