@@ -6,6 +6,7 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Session;
@@ -53,6 +54,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         store.Save([new ConcurrentStreamLimit(userId, 1)]);
         var service = new ConcurrentStreamLimitService(
             sessionManager.Object,
+            Mock.Of<ITranscodeManager>(),
             store,
             NullLogger<ConcurrentStreamLimitService>.Instance);
 
@@ -93,6 +95,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         store.Save([new ConcurrentStreamLimit(userId, 1)]);
         var service = new ConcurrentStreamLimitService(
             sessionManager.Object,
+            Mock.Of<ITranscodeManager>(),
             store,
             NullLogger<ConcurrentStreamLimitService>.Instance);
 
@@ -127,6 +130,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         store.Save([new ConcurrentStreamLimit(userId, 1)]);
         var service = new ConcurrentStreamLimitService(
             sessionManager.Object,
+            Mock.Of<ITranscodeManager>(),
             store,
             NullLogger<ConcurrentStreamLimitService>.Instance);
 
@@ -163,6 +167,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         store.Save([new ConcurrentStreamLimit(userId, 2, StopOldest: true)]);
         var service = new ConcurrentStreamLimitService(
             sessionManager.Object,
+            Mock.Of<ITranscodeManager>(),
             store,
             NullLogger<ConcurrentStreamLimitService>.Instance);
 
@@ -190,6 +195,12 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         newestSession.LastPlaybackCheckIn = DateTime.UtcNow;
         var sessionManager = new Mock<ISessionManager>();
         sessionManager.SetupGet(manager => manager.Sessions).Returns([olderSession, newestSession]);
+        var transcodeManager = new Mock<ITranscodeManager>();
+        transcodeManager.Setup(manager => manager.KillTranscodingJobs(
+                newestSession.DeviceId,
+                "play-session-newest",
+                It.IsAny<Func<string, bool>>()))
+            .Returns(Task.CompletedTask);
         var stopRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         sessionManager.Setup(manager => manager.SendPlaystateCommand(
                 newestSession.Id,
@@ -207,6 +218,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         store.Save([new ConcurrentStreamLimit(userId, 1)]);
         var service = new ConcurrentStreamLimitService(
             sessionManager.Object,
+            transcodeManager.Object,
             store,
             NullLogger<ConcurrentStreamLimitService>.Instance);
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -216,7 +228,8 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         {
             sessionManager.Raise(manager => manager.PlaybackProgress += null, new PlaybackProgressEventArgs
             {
-                Session = newestSession
+                Session = newestSession,
+                PlaySessionId = "play-session-newest"
             });
 
             await stopRequested.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
@@ -225,6 +238,10 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
                 newestSession.Id,
                 It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
                 It.IsAny<CancellationToken>()), Times.Once);
+            transcodeManager.Verify(manager => manager.KillTranscodingJobs(
+                newestSession.DeviceId,
+                "play-session-newest",
+                It.IsAny<Func<string, bool>>()), Times.Once);
         }
         finally
         {
@@ -237,6 +254,7 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
         return new SessionInfo(Mock.Of<ISessionManager>(), NullLogger.Instance)
         {
             Id = sessionId,
+            DeviceId = sessionId,
             UserId = userId,
             NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() },
             SessionControllers = isActive
