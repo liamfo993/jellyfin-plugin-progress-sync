@@ -112,35 +112,214 @@
             padding: 1em 1.25em 1.25em;
         }
 
-        #progressSyncConfigPage .ps-mode-guide {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: .65em;
-            margin: .75em 0 1.1em;
+        #progressSyncConfigPage .ps-settings-section form {
+            max-width: none;
         }
 
-        #progressSyncConfigPage .ps-mode-card {
-            padding: .8em .9em;
+        #progressSyncConfigPage .ps-integration-status {
+            display: flex;
+            align-items: flex-start;
+            gap: .75em;
+            padding: .85em 1em;
+            margin: 0 0 1.25em;
+            border: 1px solid var(--ps-border);
+            border-radius: 9px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncConfigPage .ps-integration-status p {
+            margin: 0;
+        }
+
+        #progressSyncConfigPage .ps-integration-indicator {
+            width: .75em;
+            height: .75em;
+            flex: 0 0 .75em;
+            margin-top: .35em;
+            border-radius: 50%;
+            background: #e0a030;
+            box-shadow: 0 0 0 4px rgba(224, 160, 48, .13);
+        }
+
+        #progressSyncConfigPage .ps-integration-status.is-active .ps-integration-indicator {
+            background: #52b788;
+            box-shadow: 0 0 0 4px rgba(82, 183, 136, .13);
+        }
+
+        #progressSyncConfigPage .ps-search-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            gap: .75em;
+        }
+
+        #progressSyncConfigPage .ps-search-row .inputContainer {
+            margin-bottom: 0;
+        }
+
+        #progressSyncConfigPage .ps-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: .25em 1em;
+        }
+
+        #progressSyncConfigPage .ps-user-flow {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: center;
+            gap: .75em;
+        }
+
+        #progressSyncConfigPage .ps-flow-arrow {
+            align-self: center;
+            padding-top: .9em;
+            color: var(--ps-accent);
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        #progressSyncConfigPage .ps-mode-summary {
+            padding: .85em 1em;
+            margin: .25em 0 1em;
             border-left: 3px solid var(--ps-accent);
             border-radius: 4px;
-            background: rgba(255, 255, 255, .04);
+            background: rgba(0, 164, 220, .08);
         }
 
-        #progressSyncConfigPage .ps-mode-card strong {
-            display: block;
-            margin-bottom: .25em;
+        #progressSyncConfigPage .ps-form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .75em;
         }
 
-        #progressSyncConfigPage .ps-table-scroll {
-            overflow-x: auto;
+        #progressSyncConfigPage .ps-form-actions .ps-status {
+            flex: 1 1 250px;
+            margin: 0;
         }
 
-        #progressSyncConfigPage .ps-settings-section form {
-            max-width: 760px;
+        #progressSyncConfigPage .ps-sync-list {
+            display: grid;
+            gap: .75em;
         }
 
-        #progressSyncConfigPage .ps-settings-section table {
-            min-width: 620px;
+        #progressSyncConfigPage .ps-sync-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: .8em 1.25em;
+            padding: 1em 1.1em;
+            border: 1px solid var(--ps-border);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .035);
+            transition: border-color .16s ease, background .16s ease;
+        }
+
+        #progressSyncConfigPage .ps-sync-card:hover {
+            border-color: rgba(0, 164, 220, .4);
+            background: rgba(0, 164, 220, .055);
+        }
+
+        #progressSyncConfigPage .ps-sync-main {
+            display: grid;
+            min-width: 0;
+            gap: .55em;
+        }
+
+        #progressSyncConfigPage .ps-sync-title-row,
+        #progressSyncConfigPage .ps-sync-meta,
+        #progressSyncConfigPage .ps-sync-scopes {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .45em .7em;
+        }
+
+        #progressSyncConfigPage .ps-sync-title {
+            overflow-wrap: anywhere;
+            font-size: 1.05em;
+            font-weight: 700;
+        }
+
+        #progressSyncConfigPage .ps-sync-badge,
+        #progressSyncConfigPage .ps-sync-scope {
+            display: inline-flex;
+            align-items: center;
+            padding: .22em .65em;
+            border: 1px solid var(--ps-border);
+            border-radius: 999px;
+            color: var(--secondary-text-color, #bbb);
+            font-size: .8em;
+            white-space: nowrap;
+        }
+
+        #progressSyncConfigPage .ps-sync-badge {
+            border-color: rgba(82, 183, 136, .3);
+            background: rgba(82, 183, 136, .1);
+            color: #81d4a9;
+        }
+
+        #progressSyncConfigPage .ps-sync-flow {
+            overflow-wrap: anywhere;
+            font-weight: 600;
+        }
+
+        #progressSyncConfigPage .ps-sync-arrow {
+            padding: 0 .4em;
+            color: var(--ps-accent);
+            font-size: 1.15em;
+        }
+
+        #progressSyncConfigPage .ps-sync-meta,
+        #progressSyncConfigPage .ps-sync-meta time {
+            color: var(--secondary-text-color, #aaa);
+            font-size: .88em;
+        }
+
+        #progressSyncConfigPage .ps-sync-action {
+            align-self: center;
+        }
+
+        #progressSyncConfigPage .ps-sync-empty {
+            padding: 1.5em;
+            border: 1px dashed var(--ps-border);
+            border-radius: 9px;
+            color: var(--secondary-text-color, #aaa);
+            text-align: center;
+        }
+
+        #progressSyncConfigPage .ps-scope-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+            gap: .6em;
+            margin: .5em 0 1em;
+        }
+
+        #progressSyncConfigPage .ps-scope-option {
+            display: flex;
+            min-height: 3em;
+            align-items: center;
+            padding: .55em .8em;
+            border: 1px solid var(--ps-border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .035);
+        }
+
+        #progressSyncConfigPage .ps-scope-option.is-selected {
+            border-color: rgba(0, 164, 220, .55);
+            background: rgba(0, 164, 220, .1);
+        }
+
+        #progressSyncConfigPage .ps-scope-option input {
+            margin-right: .55em;
+        }
+
+        #progressSyncConfigPage .ps-global-note {
+            padding: .85em 1em;
+            margin-bottom: 1em;
+            border: 1px solid var(--ps-border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .035);
         }
 
         #progressSyncConfigPage .ps-status {
@@ -157,6 +336,25 @@
                 padding-right: .9em;
                 padding-left: .9em;
             }
+
+            #progressSyncConfigPage .ps-search-row,
+            #progressSyncConfigPage .ps-user-flow {
+                grid-template-columns: 1fr;
+            }
+
+            #progressSyncConfigPage .ps-flow-arrow {
+                padding: 0;
+                text-align: center;
+                line-height: 1;
+            }
+
+            #progressSyncConfigPage .ps-sync-card {
+                grid-template-columns: 1fr;
+            }
+
+            #progressSyncConfigPage .ps-sync-action .emby-button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -168,145 +366,130 @@
                     <h1>Progress sync</h1>
                     <p class="fieldDescription">Copy watch progress once, or keep users in sync automatically. These controls affect playback position and watched status—not ratings, favorites, or subtitles.</p>
                     <div class="ps-settings-guide" aria-label="Progress sync modes">
-                        <div class="ps-guide-card">
-                            <strong>Copy once</strong>
-                            <span class="fieldDescription">Make a one-time copy from one user to another.</span>
-                        </div>
-                        <div class="ps-guide-card">
-                            <strong>Continuous one-way</strong>
-                            <span class="fieldDescription">Keep the target updated from the source.</span>
-                        </div>
-                        <div class="ps-guide-card">
-                            <strong>Continuous two-way</strong>
-                            <span class="fieldDescription">Keep both users' progress in sync.</span>
-                        </div>
+                        <div class="ps-guide-card"><strong>Copy once</strong><span class="fieldDescription">One-time change</span></div>
+                        <div class="ps-guide-card"><strong>One-way</strong><span class="fieldDescription">Source → target</span></div>
+                        <div class="ps-guide-card"><strong>Two-way</strong><span class="fieldDescription">Both users stay in sync</span></div>
                     </div>
                 </header>
-                <div id="psFtStatus" class="ps-status" role="status" aria-live="polite"></div>
+                <div id="psFtStatus" class="ps-integration-status" role="status" aria-live="polite">
+                    <span class="ps-integration-indicator" aria-hidden="true"></span>
+                </div>
                 <section class="ps-settings-section">
                     <div class="ps-section-heading">
                         <span class="ps-section-number" aria-hidden="true">1</span>
                         <div>
                             <h2>Copy progress or start a sync</h2>
-                            <div class="fieldDescription">Pick a title, choose who progress comes from and goes to, then select how long the change should apply.</div>
+                            <div class="fieldDescription">Choose a title and users, then decide whether to copy progress once or keep it in sync.</div>
                         </div>
                     </div>
                     <div class="ps-section-content">
-                <form id="psSetupForm">
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Find a movie, series, or audio item</label>
-                        <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
-                        <div class="fieldDescription">Enter at least two characters, then choose a result.</div>
-                    </div>
-                    <button id="psSearchItems" type="button" class="emby-button">
-                        <span>Search library</span>
-                    </button>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psItem">Library item</label>
-                        <select id="psItem" is="emby-select" class="emby-select" required></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psSourceUser">Copy progress from</label>
-                        <select id="psSourceUser" is="emby-select" class="emby-select" required></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psTargetUser">Copy progress to</label>
-                        <select id="psTargetUser" is="emby-select" class="emby-select" required></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psSyncMode">How should progress be applied?</label>
-                        <select id="psSyncMode" is="emby-select" class="emby-select">
-                            <option value="">Copy once (does not keep syncing)</option>
-                            <option value="Follow">Keep syncing one way (source to target)</option>
-                            <option value="Mirror">Keep both users in sync</option>
-                        </select>
-                    </div>
-                    <div class="ps-mode-guide" aria-label="Sync behavior">
-                        <div class="ps-mode-card">
-                            <strong>Copy once</strong>
-                            <span class="fieldDescription">Copies the current progress and creates no ongoing sync.</span>
-                        </div>
-                        <div class="ps-mode-card">
-                            <strong>One-way</strong>
-                            <span class="fieldDescription">Creates an ongoing source → target sync and copies current progress.</span>
-                        </div>
-                        <div class="ps-mode-card">
-                            <strong>Two-way</strong>
-                            <span class="fieldDescription">Creates an ongoing sync in both directions and copies current progress.</span>
-                        </div>
-                    </div>
-                    <button id="psApplySync" type="submit" class="emby-button button-submit">
-                        <span>Apply</span>
-                    </button>
-                    <div id="psSetupStatus" class="ps-status" role="status" aria-live="polite" style="margin: 1em 0;"></div>
-                </form>
+                        <form id="psSetupForm">
+                            <div class="ps-search-row">
+                                <div class="inputContainer">
+                                    <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Search for a title</label>
+                                    <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
+                                    <div class="fieldDescription">Movies, series, and music. Enter at least two characters.</div>
+                                </div>
+                                <button id="psSearchItems" type="button" class="emby-button">
+                                    <span>Search</span>
+                                </button>
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="psItem">Choose a title</label>
+                                <select id="psItem" is="emby-select" class="emby-select" required></select>
+                            </div>
+                            <div class="ps-user-flow">
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="psSourceUser">From user</label>
+                                    <select id="psSourceUser" is="emby-select" class="emby-select" required></select>
+                                </div>
+                                <span id="psUserFlowArrow" class="ps-flow-arrow" aria-hidden="true">→</span>
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="psTargetUser">To user</label>
+                                    <select id="psTargetUser" is="emby-select" class="emby-select" required></select>
+                                </div>
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="psSyncMode">Sync behavior</label>
+                                <select id="psSyncMode" is="emby-select" class="emby-select">
+                                    <option value="">Copy once — no ongoing sync</option>
+                                    <option value="Follow">One-way — keep the target updated</option>
+                                    <option value="Mirror">Two-way — keep both users in sync</option>
+                                </select>
+                            </div>
+                            <div id="psModeSummary" class="ps-mode-summary fieldDescription" aria-live="polite"></div>
+                            <div class="ps-form-actions">
+                                <button id="psApplySync" type="submit" class="emby-button button-submit">
+                                    <span>Review and apply</span>
+                                </button>
+                                <div id="psSetupStatus" class="ps-status" role="status" aria-live="polite"></div>
+                            </div>
+                        </form>
                     </div>
                 </section>
                 <section class="ps-settings-section">
                     <div class="ps-section-heading">
                         <span class="ps-section-number" aria-hidden="true">2</span>
                         <div>
-                            <h2>Active continuous syncs</h2>
-                            <div class="fieldDescription">Review ongoing title-specific and global syncs. Deactivate a row to stop future automatic updates.</div>
+                            <h2>Active syncs <span id="psSyncCount" class="ps-sync-badge">0</span></h2>
+                            <div class="fieldDescription">These keep updating progress automatically. Deactivate one to stop future updates.</div>
                         </div>
                     </div>
-                    <div class="ps-section-content ps-table-scroll">
-                <table class="detailTable" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th class="detailTableHeaderCell">Item</th>
-                            <th class="detailTableHeaderCell">Progress flow</th>
-                            <th class="detailTableHeaderCell">Status</th>
-                            <th class="detailTableHeaderCell">Created</th>
-                            <th class="detailTableHeaderCell">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="psLinks"></tbody>
-                </table>
+                    <div class="ps-section-content">
+                        <div id="psLinks" class="ps-sync-list"></div>
+                        <div id="psActiveStatus" class="ps-status" role="status" aria-live="polite"></div>
                     </div>
                 </section>
                 <section class="ps-settings-section">
                     <div class="ps-section-heading">
                         <span class="ps-section-number" aria-hidden="true">3</span>
                         <div>
-                            <h2>Sync progress across libraries</h2>
-                            <div class="fieldDescription">Create a profile that applies to selected media types for two users. It syncs future changes only and does not copy existing progress.</div>
+                            <h2>Library-wide sync</h2>
+                            <div class="fieldDescription">Automatically sync selected media types for these users. This applies to future changes only.</div>
                         </div>
                     </div>
                     <div class="ps-section-content">
-                <form id="psGlobalForm">
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psGlobalSourceUser">Global source user</label>
-                        <select id="psGlobalSourceUser" is="emby-select" class="emby-select" required></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psGlobalTargetUser">Global target user</label>
-                        <select id="psGlobalTargetUser" is="emby-select" class="emby-select" required></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="psGlobalMode">Sync direction</label>
-                        <select id="psGlobalMode" is="emby-select" class="emby-select">
-                            <option value="Follow">Continuous one-way (source to target)</option>
-                            <option value="Mirror">Continuous two-way</option>
-                        </select>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label><input id="psSeries" type="checkbox" is="emby-checkbox"><span>Series</span></label>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label><input id="psEverything" type="checkbox" is="emby-checkbox"><span>All supported media</span></label>
-                    </div>
-                    <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
-                        <span>Add global profile</span>
-                    </button>
-                    <div id="psGlobalStatus" class="ps-status" role="status" aria-live="polite" style="margin: 1em 0;"></div>
-                </form>
+                        <div class="ps-global-note fieldDescription">Unlike a title sync, this does not copy existing progress when created. It starts syncing as users make new progress.</div>
+                        <form id="psGlobalForm">
+                            <div class="ps-form-grid">
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="psGlobalSourceUser">From user</label>
+                                    <select id="psGlobalSourceUser" is="emby-select" class="emby-select" required></select>
+                                </div>
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="psGlobalTargetUser">To user</label>
+                                    <select id="psGlobalTargetUser" is="emby-select" class="emby-select" required></select>
+                                </div>
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="psGlobalMode">Direction</label>
+                                    <select id="psGlobalMode" is="emby-select" class="emby-select">
+                                        <option value="Follow">One-way — from user to user</option>
+                                        <option value="Mirror">Two-way — both users</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="fieldDescription">Choose what content should be included</div>
+                            <div class="ps-scope-options">
+                                <div class="checkboxContainer">
+                                    <label class="ps-scope-option"><input id="psMovies" type="checkbox" is="emby-checkbox"><span>Movies</span></label>
+                                </div>
+                                <div class="checkboxContainer">
+                                    <label class="ps-scope-option"><input id="psSeries" type="checkbox" is="emby-checkbox"><span>Series</span></label>
+                                </div>
+                                <div class="checkboxContainer">
+                                    <label class="ps-scope-option"><input id="psMusic" type="checkbox" is="emby-checkbox"><span>Music</span></label>
+                                </div>
+                                <div class="checkboxContainer">
+                                    <label class="ps-scope-option"><input id="psEverything" type="checkbox" is="emby-checkbox"><span>All media</span></label>
+                                </div>
+                            </div>
+                            <div class="ps-form-actions">
+                                <button id="psSaveGlobal" type="submit" class="emby-button button-submit">
+                                    <span>Create library-wide sync</span>
+                                </button>
+                                <div id="psGlobalStatus" class="ps-status" role="status" aria-live="polite"></div>
+                            </div>
+                        </form>
                     </div>
                 </section>
             </div>
@@ -364,32 +547,49 @@
                     var everything = page.querySelector('#psEverything');
                     everything.checked = options.every(function (option) { return option.checked; });
                     everything.indeterminate = !everything.checked && options.some(function (option) { return option.checked; });
+                    mediaOptions.concat(['psEverything']).forEach(updateScopeOption);
                 }
 
-                function cell(row, text) {
-                    var td = document.createElement('td');
-                    td.className = 'detailTableBodyCell';
-                    td.textContent = text;
-                    row.appendChild(td);
-                    return td;
+                function updateScopeOption(id) {
+                    var input = page.querySelector('#' + id);
+                    var label = input.closest('.ps-scope-option');
+                    label.classList.toggle('is-selected', input.checked);
+                }
+
+                function updateModeSummary() {
+                    var mode = page.querySelector('#psSyncMode').value;
+                    var summary = page.querySelector('#psModeSummary');
+                    if (mode === 'Follow') {
+                        summary.textContent = 'One-way: current progress is copied from the source to the target, and future source updates continue flowing to the target.';
+                        page.querySelector('#psUserFlowArrow').textContent = '→';
+                    } else if (mode === 'Mirror') {
+                        summary.textContent = 'Two-way: current progress is copied from the source to the target, then future progress changes sync in both directions.';
+                        page.querySelector('#psUserFlowArrow').textContent = '↔';
+                    } else {
+                        summary.textContent = 'Copy once: current progress is copied from the source to the target. No continuous sync is created.';
+                        page.querySelector('#psUserFlowArrow').textContent = '→';
+                    }
                 }
 
                 function renderStatus(overview) {
                     var el = page.querySelector('#psFtStatus');
-                    el.innerHTML = '';
+                    var indicator = document.createElement('span');
+                    indicator.className = 'ps-integration-indicator';
+                    indicator.setAttribute('aria-hidden', 'true');
                     var p = document.createElement('p');
                     if (overview.FileTransformation === 'Registered') {
                         p.textContent = 'Web client integration: active (File Transformation).';
+                        el.classList.add('is-active');
                     } else if (overview.FileTransformation === 'FileTransformationMissing') {
                         p.textContent = 'Web client integration: inactive. Install and enable the File Transformation plugin '
                             + '(repository ' + FT_REPO + '), then restart the server. Links keep working without it.';
-                        p.style.color = '#e0a030';
+                        el.classList.remove('is-active');
                     } else {
                         p.textContent = 'Web client integration: ' + overview.FileTransformation
                             + (overview.Message ? ' (' + overview.Message + ')' : '') + '. Links keep working without it.';
-                        p.style.color = '#e0a030';
+                        el.classList.remove('is-active');
                     }
-                    el.appendChild(p);
+                    el.replaceChildren(indicator, p);
                 }
 
                 function renderLinks(links) {
@@ -397,52 +597,41 @@
                     var profiles = globalSettings ? globalSettings.Profiles.filter(function (profile) {
                         return profile.IsActive;
                     }) : [];
-                    body.innerHTML = '';
+                    body.replaceChildren();
+                    page.querySelector('#psSyncCount').textContent = String(links.length + profiles.length);
                     if (links.length === 0 && profiles.length === 0) {
-                        var empty = document.createElement('tr');
-                        var emptyCell = cell(empty, 'No active continuous syncs.');
-                        emptyCell.colSpan = 5;
+                        var empty = document.createElement('div');
+                        empty.className = 'ps-sync-empty';
+                        empty.textContent = 'No active syncs yet. Create a title sync or a library-wide sync below.';
                         body.appendChild(empty);
                         return;
                     }
 
                     links.forEach(function (link) {
-                        var row = document.createElement('tr');
-                        row.className = 'detailTableBodyRow';
-                        cell(row, link.ItemName);
-                        cell(row, link.Mode === 'Mirror'
-                            ? link.CreatorName + ' and ' + link.PartnerName + ' (two-way)'
-                            : link.CreatorName + ' follows ' + link.PartnerName);
-                        cell(row, 'Active');
-                        cell(row, new Date(link.CreatedUtc).toLocaleString());
-                        var actionCell = document.createElement('td');
-                        actionCell.className = 'detailTableBodyCell';
-                        var button = document.createElement('button');
-                        button.setAttribute('is', 'emby-button');
-                        button.type = 'button';
-                        button.className = 'emby-button';
-                        button.textContent = 'Deactivate';
-                        applyButtonColors(button);
-                        button.addEventListener('click', function () {
+                        var isTwoWay = link.Mode === 'Mirror';
+                        body.appendChild(createSyncCard(
+                            link.ItemName,
+                            isTwoWay ? link.CreatorName + ' ↔ ' + link.PartnerName
+                                : link.PartnerName + ' → ' + link.CreatorName,
+                            ['Title-specific'],
+                            link.CreatedUtc,
+                            'Deactivate',
+                            function (button) {
                             deactivateLink(link, button);
-                        });
-                        actionCell.appendChild(button);
-                        row.appendChild(actionCell);
-                        body.appendChild(row);
+                            }
+                        ));
                     });
 
                     profiles.forEach(function (profile) {
-                        var row = document.createElement('tr');
-                        row.className = 'detailTableBodyRow';
                         var scopes = [];
                         if (profile.Movies) {
-                            scopes.push('movies');
+                            scopes.push('Movies');
                         }
                         if (profile.Series) {
-                            scopes.push('series');
+                            scopes.push('Series');
                         }
                         if (profile.Music) {
-                            scopes.push('music');
+                            scopes.push('Music');
                         }
                         var source = globalUsers.find(function (user) {
                             return user.Id === profile.SourceUserId;
@@ -450,29 +639,82 @@
                         var target = globalUsers.find(function (user) {
                             return user.Id === profile.TargetUserId;
                         });
-                        cell(row, 'Global: all ' + scopes.join(', '));
-                        cell(row, profile.Mode === 'Mirror'
-                            ? (source ? source.Name : '(deleted)') + ' and '
-                                + (target ? target.Name : '(deleted)') + ' (two-way)'
-                            : (source ? source.Name : '(deleted)') + ' to '
-                                + (target ? target.Name : '(deleted)') + ' (one-way)');
-                        cell(row, 'Active');
-                        cell(row, new Date(profile.CreatedUtc).toLocaleString());
-                        var actionCell = document.createElement('td');
-                        actionCell.className = 'detailTableBodyCell';
-                        var button = document.createElement('button');
-                        button.setAttribute('is', 'emby-button');
-                        button.type = 'button';
-                        button.className = 'emby-button';
-                        button.textContent = 'Deactivate';
-                        applyButtonColors(button);
-                        button.addEventListener('click', function () {
+                        body.appendChild(createSyncCard(
+                            'Library-wide sync',
+                            profile.Mode === 'Mirror'
+                                ? (source ? source.Name : '(deleted user)') + ' ↔ '
+                                    + (target ? target.Name : '(deleted user)')
+                                : (source ? source.Name : '(deleted user)') + ' → '
+                                    + (target ? target.Name : '(deleted user)'),
+                            scopes,
+                            profile.CreatedUtc,
+                            'Deactivate',
+                            function (button) {
                             deactivateGlobalProfile(profile, button);
-                        });
-                        actionCell.appendChild(button);
-                        row.appendChild(actionCell);
-                        body.appendChild(row);
+                            }
+                        ));
                     });
+                }
+
+                function createSyncCard(titleText, flowText, scopes, createdUtc, actionText, onAction) {
+                    var card = document.createElement('article');
+                    card.className = 'ps-sync-card';
+                    var main = document.createElement('div');
+                    main.className = 'ps-sync-main';
+
+                    var titleRow = document.createElement('div');
+                    titleRow.className = 'ps-sync-title-row';
+                    var title = document.createElement('span');
+                    title.className = 'ps-sync-title';
+                    title.textContent = titleText;
+                    var activeBadge = document.createElement('span');
+                    activeBadge.className = 'ps-sync-badge';
+                    activeBadge.textContent = 'Active';
+                    titleRow.append(title, activeBadge);
+
+                    var flow = document.createElement('div');
+                    flow.className = 'ps-sync-flow';
+                    flow.textContent = flowText;
+
+                    var meta = document.createElement('div');
+                    meta.className = 'ps-sync-meta';
+                    var dateLabel = document.createElement('span');
+                    dateLabel.textContent = 'Started';
+                    var date = document.createElement('time');
+                    var createdDate = new Date(createdUtc);
+                    if (!Number.isNaN(createdDate.getTime())) {
+                        date.dateTime = createdDate.toISOString();
+                        date.textContent = createdDate.toLocaleString();
+                    } else {
+                        date.textContent = 'Date unavailable';
+                    }
+                    meta.append(dateLabel, date);
+
+                    var scopeList = document.createElement('div');
+                    scopeList.className = 'ps-sync-scopes';
+                    scopes.forEach(function (scope) {
+                        var badge = document.createElement('span');
+                        badge.className = 'ps-sync-scope';
+                        badge.textContent = scope;
+                        scopeList.appendChild(badge);
+                    });
+                    main.append(titleRow, flow, scopeList, meta);
+
+                    var action = document.createElement('div');
+                    action.className = 'ps-sync-action';
+                    var button = document.createElement('button');
+                    button.setAttribute('is', 'emby-button');
+                    button.type = 'button';
+                    button.className = 'emby-button';
+                    button.textContent = actionText;
+                    button.setAttribute('aria-label', actionText + ' ' + titleText);
+                    applyButtonColors(button);
+                    button.addEventListener('click', function () {
+                        onAction(button);
+                    });
+                    action.appendChild(button);
+                    card.append(main, action);
+                    return card;
                 }
 
                 function refreshOverview() {
@@ -539,7 +781,7 @@
                 }
 
                 async function deactivateLink(link, button) {
-                    var status = page.querySelector('#psSetupStatus');
+                    var status = page.querySelector('#psActiveStatus');
                     button.disabled = true;
                     var confirmed;
                     try {
@@ -580,7 +822,7 @@
                 }
 
                 async function deactivateGlobalProfile(profile, button) {
-                    var status = page.querySelector('#psGlobalStatus');
+                    var status = page.querySelector('#psActiveStatus');
                     button.disabled = true;
                     var source = globalUsers.find(function (user) { return user.Id === profile.SourceUserId; });
                     var target = globalUsers.find(function (user) { return user.Id === profile.TargetUserId; });
@@ -632,8 +874,12 @@
                         page.querySelector('#' + id).checked = this.checked;
                     }, this);
                     this.indeterminate = false;
+                    mediaOptions.concat(['psEverything']).forEach(updateScopeOption);
                 });
 
+                page.querySelector('#psSyncMode').addEventListener('change', updateModeSummary);
+                updateModeSummary();
+                mediaOptions.concat(['psEverything']).forEach(updateScopeOption);
                 page.querySelector('#psSearchItems').addEventListener('click', searchItems);
                 page.querySelector('#psItemSearch').addEventListener('keydown', function (event) {
                     if (event.key === 'Enter') {
@@ -774,7 +1020,7 @@
                         });
                         try {
                             await refreshOverview();
-                            status.textContent = 'Global profile added and shown in Active continuous syncs.';
+                            status.textContent = 'Library-wide sync added and shown in Active syncs.';
                         } catch (err) {
                             status.textContent = 'Global profile was added, but the active sync list could not be refreshed ('
                                 + errorText(err) + ').';
@@ -789,8 +1035,11 @@
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
                     refreshOverview().catch(function (err) {
-                        page.querySelector('#psFtStatus').textContent = 'Could not load status ('
-                            + errorText(err) + ').';
+                        var status = page.querySelector('#psFtStatus');
+                        var message = document.createElement('p');
+                        message.textContent = 'Could not load status (' + errorText(err) + ').';
+                        status.classList.remove('is-active');
+                        status.replaceChildren(message);
                     }).finally(function () {
                         Dashboard.hideLoadingMsg();
                     });
