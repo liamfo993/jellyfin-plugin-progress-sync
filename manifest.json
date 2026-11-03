@@ -2,12 +2,20 @@
     {
         "guid": "c16569f5-02ed-4d6a-bbdb-649455e512d5",
         "name": "Progress Sync",
-        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages and a recently watched movie list to the home page. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
-        "overview": "Sync and view watch progress between users",
+        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages, watch status on movie and episode pages, and an expandable per-user recently watched list to the home page. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
+        "overview": "Sync and browse watch history between users",
         "owner": "liamfo993",
         "category": "General",
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
+            {
+                "version": "1.0.7.0",
+                "changelog": "Add expandable per-user home-page watch histories for movies and episodes.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.7.0/progress-sync_1.0.7.0.zip",
+                "checksum": "a6dcbf7394f6a0805b728d7ac17d5356",
+                "timestamp": "2026-11-03T18:28:20Z"
+            },
             {
                 "version": "1.0.6.0",
                 "changelog": "Add a recently watched home-page list with movie, watcher, and date.",
