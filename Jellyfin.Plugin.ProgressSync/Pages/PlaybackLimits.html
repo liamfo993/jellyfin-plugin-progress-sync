@@ -149,7 +149,7 @@
         <div class="content-primary">
             <header class="ps-hero">
                 <h1>Playback limits</h1>
-                <p class="fieldDescription">Set how many devices can play at the same time for each user. If playback exceeds the limit, the newest stream or streams are stopped until the user is back within the limit.</p>
+                <p class="fieldDescription">Set how many devices can play at the same time for each user. If playback exceeds the limit, the newest stream or streams receive a stop command. The limit is rechecked as playback continues.</p>
             </header>
 
             <div class="ps-guide" aria-label="How playback limits work">
@@ -163,7 +163,7 @@
                 </div>
                 <div class="ps-info-card">
                     <strong>Newest stream is stopped</strong>
-                    <span class="fieldDescription">When playback exceeds the limit, the newest session or sessions are stopped first.</span>
+                    <span class="fieldDescription">When playback exceeds the limit, the newest session or sessions receive a stop command first.</span>
                 </div>
             </div>
 

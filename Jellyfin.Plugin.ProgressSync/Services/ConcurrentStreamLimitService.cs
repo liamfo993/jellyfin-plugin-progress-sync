@@ -16,11 +16,13 @@ namespace Jellyfin.Plugin.ProgressSync.Services;
 /// </summary>
 public sealed class ConcurrentStreamLimitService : IHostedService
 {
+    private static readonly TimeSpan StopCommandRetryDelay = TimeSpan.FromSeconds(30);
     private readonly ISessionManager _sessionManager;
     private readonly ConcurrentStreamLimitStore _store;
     private readonly ILogger<ConcurrentStreamLimitService> _logger;
     private readonly object _enforcementLock = new();
     private readonly HashSet<string> _sessionsBeingStopped = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTime> _lastStopCommandUtc = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConcurrentStreamLimitService"/> class.
@@ -42,8 +44,10 @@ public sealed class ConcurrentStreamLimitService : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _sessionManager.PlaybackStart += OnPlaybackStart;
+        _sessionManager.PlaybackProgress += OnPlaybackProgress;
         _sessionManager.PlaybackStopped += OnPlaybackStopped;
         _sessionManager.SessionEnded += OnSessionEnded;
+        _logger.LogInformation("Progress Sync: concurrent stream limit enforcement started");
         return Task.CompletedTask;
     }
 
@@ -51,6 +55,7 @@ public sealed class ConcurrentStreamLimitService : IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _sessionManager.PlaybackStart -= OnPlaybackStart;
+        _sessionManager.PlaybackProgress -= OnPlaybackProgress;
         _sessionManager.PlaybackStopped -= OnPlaybackStopped;
         _sessionManager.SessionEnded -= OnSessionEnded;
         return Task.CompletedTask;
@@ -74,7 +79,6 @@ public sealed class ConcurrentStreamLimitService : IHostedService
 
             var activeSessions = _sessionManager.Sessions
                 .Where(session => session.UserId == startedSession.UserId
-                    && session.IsActive
                     && session.NowPlayingItem is not null)
                 .ToList();
             if (activeSessions.Count <= limit)
@@ -82,7 +86,10 @@ public sealed class ConcurrentStreamLimitService : IHostedService
                 return;
             }
 
-            var pendingCount = activeSessions.Count(session => _sessionsBeingStopped.Contains(session.Id));
+            var now = DateTime.UtcNow;
+            var pendingCount = activeSessions.Count(session =>
+                _sessionsBeingStopped.Contains(session.Id)
+                || IsStopCommandRecent(session.Id, now));
             var overage = activeSessions.Count - limit - pendingCount;
             if (overage <= 0)
             {
@@ -92,7 +99,8 @@ public sealed class ConcurrentStreamLimitService : IHostedService
             sessionsToStop = activeSessions
                 .OrderByDescending(session => session.LastPlaybackCheckIn)
                 .ThenByDescending(session => session.LastActivityDate)
-                .Where(session => !_sessionsBeingStopped.Contains(session.Id))
+                .Where(session => !_sessionsBeingStopped.Contains(session.Id)
+                    && !IsStopCommandRecent(session.Id, now))
                 .Take(overage)
                 .ToList();
             if (sessionsToStop.Count == 0)
@@ -103,6 +111,7 @@ public sealed class ConcurrentStreamLimitService : IHostedService
             foreach (var session in sessionsToStop)
             {
                 _sessionsBeingStopped.Add(session.Id);
+                _lastStopCommandUtc[session.Id] = now;
             }
         }
 
@@ -117,20 +126,29 @@ public sealed class ConcurrentStreamLimitService : IHostedService
                     CancellationToken.None).ConfigureAwait(false);
 
                 _logger.LogWarning(
-                    "Progress Sync: stopped newest playback session {SessionId} for user {UserId}; concurrent stream limit is {Limit}",
+                    "Progress Sync: requested playback stop for newest session {SessionId} for user {UserId}; concurrent stream limit is {Limit}",
                     session.Id,
                     startedSession.UserId,
                     limit);
             }
             catch (Exception ex)
             {
-                RemovePendingSession(session.Id);
+                RemoveStopRequest(session.Id);
                 _logger.LogError(ex, "Progress Sync: failed to enforce concurrent stream limit for session {SessionId}", session.Id);
+            }
+            finally
+            {
+                RemoveInFlightStop(session.Id);
             }
         }
     }
 
     private void OnPlaybackStart(object? sender, PlaybackProgressEventArgs eventArgs)
+    {
+        _ = EnforceFromEventAsync(eventArgs.Session);
+    }
+
+    private void OnPlaybackProgress(object? sender, PlaybackProgressEventArgs eventArgs)
     {
         _ = EnforceFromEventAsync(eventArgs.Session);
     }
@@ -159,6 +177,11 @@ public sealed class ConcurrentStreamLimitService : IHostedService
 
     private void RemovePendingSession(string? sessionId)
     {
+        RemoveStopRequest(sessionId);
+    }
+
+    private void RemoveStopRequest(string? sessionId)
+    {
         if (string.IsNullOrEmpty(sessionId))
         {
             return;
@@ -167,6 +190,21 @@ public sealed class ConcurrentStreamLimitService : IHostedService
         lock (_enforcementLock)
         {
             _sessionsBeingStopped.Remove(sessionId);
+            _lastStopCommandUtc.Remove(sessionId);
         }
+    }
+
+    private void RemoveInFlightStop(string sessionId)
+    {
+        lock (_enforcementLock)
+        {
+            _sessionsBeingStopped.Remove(sessionId);
+        }
+    }
+
+    private bool IsStopCommandRecent(string sessionId, DateTime now)
+    {
+        return _lastStopCommandUtc.TryGetValue(sessionId, out var lastStopCommandUtc)
+            && now - lastStopCommandUtc < StopCommandRetryDelay;
     }
 }

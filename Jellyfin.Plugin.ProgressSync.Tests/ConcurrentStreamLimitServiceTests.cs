@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Models;
 using Jellyfin.Plugin.ProgressSync.Services;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Session;
@@ -104,14 +105,102 @@ public sealed class ConcurrentStreamLimitServiceTests : IDisposable
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static SessionInfo CreateSession(Guid userId, string sessionId)
+    [Fact]
+    public async Task EnforceAsync_CountsPlayingSessionWhenJellyfinMarksSessionInactive()
+    {
+        var userId = Guid.NewGuid();
+        var olderSession = CreateSession(userId, "older", isActive: false);
+        olderSession.LastPlaybackCheckIn = DateTime.UtcNow.AddMinutes(-1);
+        var newestSession = CreateSession(userId, "newest");
+        newestSession.LastPlaybackCheckIn = DateTime.UtcNow;
+        var sessionManager = new Mock<ISessionManager>();
+        sessionManager.SetupGet(manager => manager.Sessions).Returns([olderSession, newestSession]);
+        sessionManager.Setup(manager => manager.SendPlaystateCommand(
+                string.Empty,
+                It.IsAny<string>(),
+                It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var store = new ConcurrentStreamLimitStore(
+            Path.Combine(_dir, "stream-limits.json"),
+            NullLogger<ConcurrentStreamLimitStore>.Instance);
+        store.Save([new ConcurrentStreamLimit(userId, 1)]);
+        var service = new ConcurrentStreamLimitService(
+            sessionManager.Object,
+            store,
+            NullLogger<ConcurrentStreamLimitService>.Instance);
+
+        await service.EnforceAsync(newestSession);
+
+        sessionManager.Verify(manager => manager.SendPlaystateCommand(
+            string.Empty,
+            newestSession.Id,
+            It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaybackProgress_RechecksConcurrentStreamLimit()
+    {
+        var userId = Guid.NewGuid();
+        var olderSession = CreateSession(userId, "older");
+        olderSession.LastPlaybackCheckIn = DateTime.UtcNow.AddMinutes(-1);
+        var newestSession = CreateSession(userId, "newest");
+        newestSession.LastPlaybackCheckIn = DateTime.UtcNow;
+        var sessionManager = new Mock<ISessionManager>();
+        sessionManager.SetupGet(manager => manager.Sessions).Returns([olderSession, newestSession]);
+        var stopRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        sessionManager.Setup(manager => manager.SendPlaystateCommand(
+                string.Empty,
+                newestSession.Id,
+                It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+                It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                stopRequested.TrySetResult(true);
+                return Task.CompletedTask;
+            });
+        var store = new ConcurrentStreamLimitStore(
+            Path.Combine(_dir, "stream-limits.json"),
+            NullLogger<ConcurrentStreamLimitStore>.Instance);
+        store.Save([new ConcurrentStreamLimit(userId, 1)]);
+        var service = new ConcurrentStreamLimitService(
+            sessionManager.Object,
+            store,
+            NullLogger<ConcurrentStreamLimitService>.Instance);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await service.StartAsync(cancellationToken);
+
+        try
+        {
+            sessionManager.Raise(manager => manager.PlaybackProgress += null, new PlaybackProgressEventArgs
+            {
+                Session = newestSession
+            });
+
+            await stopRequested.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            sessionManager.Verify(manager => manager.SendPlaystateCommand(
+                string.Empty,
+                newestSession.Id,
+                It.Is<PlaystateRequest>(request => request.Command == PlaystateCommand.Stop),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            await service.StopAsync(cancellationToken);
+        }
+    }
+
+    private static SessionInfo CreateSession(Guid userId, string sessionId, bool isActive = true)
     {
         return new SessionInfo(Mock.Of<ISessionManager>(), NullLogger.Instance)
         {
             Id = sessionId,
             UserId = userId,
             NowPlayingItem = new BaseItemDto { Id = Guid.NewGuid() },
-            SessionControllers = []
+            SessionControllers = isActive
+                ? []
+                : [Mock.Of<ISessionController>(controller => controller.IsSessionActive == false)]
         };
     }
 }

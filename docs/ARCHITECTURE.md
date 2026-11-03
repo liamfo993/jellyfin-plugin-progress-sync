@@ -81,13 +81,13 @@ text. The four history tabs appear before the API requests complete, and complet
 history load independently. The page reloads after a sync change because the details page only
 refreshes part of itself when user data changes.
 
-`ConcurrentStreamLimitService` listens for playback-start events and compares active playback
-sessions against each user's persisted limit. It serializes decisions, stops the newest session or
-sessions with Jellyfin's playstate command until the user is within the limit, and logs enforcement
-results. A zero or missing limit means unlimited. Administrators manage per-user limits on the
-Playback limits tab. Watch history, playback limits, and progress sync are separate tabs in the
-plugin page navigation. The Progress sync tab groups one-time copies, continuous links, and global
-profiles into separate guided sections.
+`ConcurrentStreamLimitService` listens for playback-start and playback-progress events and compares
+sessions with a playing item against each user's persisted limit. It serializes decisions, requests
+a stop for the newest session or sessions with Jellyfin's playstate command, and retries an
+unconfirmed stop no more than once every 30 seconds. A zero or missing limit means unlimited.
+Administrators manage per-user limits on the Playback limits tab. Watch history, playback limits,
+and progress sync are separate tabs in the plugin page navigation. The Progress sync tab groups
+one-time copies, continuous links, and global profiles into separate guided sections.
 
 ## REST API
 
