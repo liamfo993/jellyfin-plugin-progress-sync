@@ -161,7 +161,7 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Lists the enabled users available in the homepage watch history.
+    /// Lists the enabled users available in the watch history dashboard.
     /// </summary>
     /// <response code="200">Users returned.</response>
     /// <response code="403">The caller is not a user.</response>

@@ -72,12 +72,12 @@ Transformation plugin:
 - The script URL is relative (`../ProgressSync/ClientScript?v=<module version id>`), so it works
   with any base URL, and the version changes with every build.
 
-`progressSync.js` listens for jellyfin-web's `viewshow` event on `#itemDetailPage` and `#indexPage`.
-It adds the sync button and, on movie and episode pages, the watch-status button next to the other
-actions. On the home page it observes the asynchronously loaded sections and appends a list of users.
-Expanding a user loads that user's 25 most recent accessible completed movie and episode watches.
-User and item names are inserted as text. The page reloads after a sync change because the details
-page only refreshes part of itself when user data changes.
+`progressSync.js` listens for jellyfin-web's `viewshow` event on `#itemDetailPage`. It adds the sync
+button and, on movie and episode pages, the watch-status button next to the other actions.
+`WatchHistory.html` and `WatchHistory.js` provide a dashboard registered in the main menu, with
+per-user expandable histories. Expanding a user loads that user's 25 most recent accessible
+completed movie and episode watches. User and item names are inserted as text. The page reloads
+after a sync change because the details page only refreshes part of itself when user data changes.
 
 ## REST API
 
@@ -89,7 +89,7 @@ settings page and verify that both users can access the selected item before cop
 |---|---|---|
 | `POST /Items/{itemId}/CopyFrom/{sourceUserId}` | user | Copy progress to the caller |
 | `GET /Items/{itemId}/WatchStatus` | user | Enabled users' accessible movie or episode watch status |
-| `GET /RecentlyWatched/Users` | user | Enabled users for the homepage watch history |
+| `GET /RecentlyWatched/Users` | user | Enabled users for the watch history dashboard |
 | `GET /RecentlyWatched/Users/{userId}` | user | Up to 25 recent completed, accessible movies and episodes for a user |
 | `GET /Items/{itemId}/Links` | user | Links on the item's root visible to the caller |
 | `POST /Items/{itemId}/Links` | user | Create or update a link, then copy the partner's progress |

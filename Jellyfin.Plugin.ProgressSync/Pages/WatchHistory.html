@@ -1,0 +1,199 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/WatchHistory.js">
+    <style>
+        #progressSyncWatchHistory {
+            --ps-accent: #00a4dc;
+            --ps-card: rgba(255, 255, 255, .055);
+            --ps-border: rgba(255, 255, 255, .1);
+        }
+
+        #progressSyncWatchHistory .ps-hero {
+            padding: 1.5em;
+            margin: 0 0 1.25em;
+            border: 1px solid var(--ps-border);
+            border-radius: 12px;
+            background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
+        }
+
+        #progressSyncWatchHistory .ps-hero h1 {
+            margin: 0 0 .35em;
+            font-size: 1.8em;
+        }
+
+        #progressSyncWatchHistory .ps-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1em;
+            margin: 0 0 1.25em;
+        }
+
+        #progressSyncWatchHistory .ps-metric,
+        #progressSyncWatchHistory .ps-panel,
+        #progressSyncWatchHistory .ps-user-card {
+            border: 1px solid var(--ps-border);
+            border-radius: 10px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncWatchHistory .ps-metric {
+            padding: 1em 1.15em;
+        }
+
+        #progressSyncWatchHistory .ps-metric-value {
+            display: block;
+            color: var(--ps-accent);
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        #progressSyncWatchHistory .ps-panel {
+            padding: 1.25em;
+        }
+
+        #progressSyncWatchHistory .ps-panel-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75em;
+            margin-bottom: 1em;
+        }
+
+        #progressSyncWatchHistory .ps-panel-header h2 {
+            margin: 0;
+        }
+
+        #progressSyncWatchHistory .ps-users {
+            display: grid;
+            gap: .75em;
+        }
+
+        #progressSyncWatchHistory .ps-user-card {
+            overflow: hidden;
+        }
+
+        #progressSyncWatchHistory .ps-user-card[open] {
+            border-color: rgba(0, 164, 220, .45);
+        }
+
+        #progressSyncWatchHistory .ps-user-summary {
+            display: flex;
+            align-items: center;
+            gap: .85em;
+            padding: .85em 1em;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        #progressSyncWatchHistory .ps-user-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        #progressSyncWatchHistory .ps-user-avatar {
+            display: grid;
+            width: 2.5em;
+            height: 2.5em;
+            flex: 0 0 2.5em;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(0, 164, 220, .2);
+            color: var(--ps-accent);
+            font-weight: 700;
+        }
+
+        #progressSyncWatchHistory .ps-user-name {
+            flex: 1;
+            font-size: 1.05em;
+            font-weight: 600;
+        }
+
+        #progressSyncWatchHistory .ps-user-hint,
+        #progressSyncWatchHistory .ps-history-empty {
+            color: var(--secondary-text-color, #aaa);
+            font-size: .9em;
+        }
+
+        #progressSyncWatchHistory .ps-history {
+            margin: 0;
+            padding: 0 1em 1em;
+            list-style: none;
+        }
+
+        #progressSyncWatchHistory .ps-history-row {
+            display: flex;
+            align-items: center;
+            gap: 1em;
+            padding: .75em 0;
+            border-top: 1px solid var(--ps-border);
+        }
+
+        #progressSyncWatchHistory .ps-history-type {
+            flex: 0 0 5.5em;
+            color: var(--ps-accent);
+            font-size: .82em;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        #progressSyncWatchHistory .ps-history-title {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #progressSyncWatchHistory .ps-history-date {
+            color: var(--secondary-text-color, #aaa);
+            font-size: .88em;
+            text-align: right;
+        }
+
+        @media (max-width: 600px) {
+            #progressSyncWatchHistory .ps-history-row {
+                flex-wrap: wrap;
+                gap: .4em .8em;
+            }
+
+            #progressSyncWatchHistory .ps-history-type {
+                flex-basis: 100%;
+            }
+
+            #progressSyncWatchHistory .ps-history-date {
+                text-align: left;
+            }
+        }
+    </style>
+    <div id="progressSyncWatchHistory" data-role="content">
+        <div class="content-primary">
+            <header class="ps-hero">
+                <h1>Watch History</h1>
+                <p class="fieldDescription">See what everyone has been watching lately. Expand a user to browse their latest movies and episodes.</p>
+            </header>
+            <div class="ps-metrics" aria-label="Watch history overview">
+                <div class="ps-metric">
+                    <span id="psHistoryUserCount" class="ps-metric-value">—</span>
+                    <span class="fieldDescription">Enabled users</span>
+                </div>
+                <div class="ps-metric">
+                    <span class="ps-metric-value">25</span>
+                    <span class="fieldDescription">Recent items per user</span>
+                </div>
+                <div class="ps-metric">
+                    <span class="ps-metric-value">Movies + TV</span>
+                    <span class="fieldDescription">Watch history</span>
+                </div>
+            </div>
+            <section class="ps-panel">
+                <div class="ps-panel-header">
+                    <div>
+                        <h2 class="sectionTitle">Recent activity</h2>
+                        <div class="fieldDescription">Only items you can access are shown.</div>
+                    </div>
+                    <button is="emby-button" type="button" class="raised" id="psRefreshHistory">
+                        <span>Refresh</span>
+                    </button>
+                </div>
+                <div id="psHistoryStatus" class="fieldDescription" role="status" aria-live="polite"></div>
+                <div id="psHistoryUsers" class="ps-users"></div>
+            </section>
+        </div>
+    </div>
+</div>

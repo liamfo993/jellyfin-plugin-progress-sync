@@ -44,6 +44,19 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         [
             new PluginPageInfo
             {
+                Name = "WatchHistory",
+                DisplayName = "Watch History",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.WatchHistory.html",
+                EnableInMainMenu = true,
+                MenuIcon = "history"
+            },
+            new PluginPageInfo
+            {
+                Name = "WatchHistory.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.WatchHistory.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "ProgressSync",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
             }

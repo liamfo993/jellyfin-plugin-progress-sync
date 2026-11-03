@@ -2,7 +2,7 @@
     {
         "guid": "c16569f5-02ed-4d6a-bbdb-649455e512d5",
         "name": "Progress Sync",
-        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages, watch status on movie and episode pages, and an expandable per-user recently watched list to the home page. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
+        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages, watch status on movie and episode pages, and a per-user watch history dashboard in the main menu. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
         "overview": "Sync and browse watch history between users",
         "owner": "liamfo993",
         "category": "General",

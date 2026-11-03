@@ -10,7 +10,6 @@
 
     const LOG = '[ProgressSync]';
     const SUPPORTED = new Set(['Movie', 'Episode', 'Season', 'Series']);
-    const homeObservers = new WeakMap();
 
     // jellyfin-web registers custom elements through the webcomponents v0 polyfill, which upgrades
     // elements created from markup. document.createElement(tag, { is }) throws under that polyfill.
@@ -65,11 +64,6 @@
 
     // The script is deferred; handle a details view that is already visible (e.g. hard reload on #/details).
     queueMicrotask(function () {
-        const home = document.querySelector('#indexPage:not(.hide)');
-        if (home) {
-            watchHomePage(home);
-        }
-
         const view = document.querySelector('#itemDetailPage:not(.hide)');
         if (view) {
             handleView(view, idFromHash());
@@ -79,11 +73,6 @@
     function onViewShow(e) {
         const view = e.target;
         if (!(view instanceof HTMLElement)) {
-            return;
-        }
-
-        if (view.id === 'indexPage') {
-            watchHomePage(view);
             return;
         }
 
@@ -104,132 +93,6 @@
         const template = document.createElement('template');
         template.innerHTML = html;
         return template.content.firstElementChild;
-    }
-
-    function watchHomePage(view) {
-        if (homeObservers.has(view)) {
-            addRecentlyWatchedSection(view);
-            return;
-        }
-
-        const sections = view.querySelector('#homeTab .sections');
-        if (!sections) {
-            return;
-        }
-
-        const observer = new MutationObserver(function () {
-            addRecentlyWatchedSection(view);
-        });
-        observer.observe(sections, { childList: true, subtree: true });
-        homeObservers.set(view, observer);
-        addRecentlyWatchedSection(view);
-    }
-
-    function addRecentlyWatchedSection(view) {
-        const container = view.querySelector('#homeTab .sections.homeSectionsContainer');
-        if (!container || container.querySelector('.psRecentlyWatched')) {
-            return;
-        }
-
-        const section = document.createElement('section');
-        section.className = 'verticalSection psRecentlyWatched';
-        section.style.cssText = 'padding:1em 0;';
-        const title = document.createElement('h2');
-        title.className = 'sectionTitle sectionTitle-cards padded-left';
-        title.textContent = 'Recently watched';
-        const list = document.createElement('ul');
-        list.style.cssText = 'list-style:none;padding:0;margin:0;';
-        const message = document.createElement('p');
-        message.className = 'fieldDescription padded-left';
-        message.textContent = 'Loading…';
-        section.appendChild(title);
-        section.appendChild(list);
-        section.appendChild(message);
-        container.appendChild(section);
-        loadRecentlyWatched(section, list, message);
-    }
-
-    async function loadRecentlyWatched(section, list, message) {
-        try {
-            const apiClient = window.ApiClient;
-            const users = await apiClient.getJSON(apiClient.getUrl('ProgressSync/RecentlyWatched/Users'));
-            if (!section.isConnected) {
-                return;
-            }
-
-            list.innerHTML = '';
-            if (users.length === 0) {
-                message.textContent = 'No enabled users found.';
-                return;
-            }
-
-            for (const user of users) {
-                const row = document.createElement('li');
-                row.style.cssText = 'padding:.35em 1em;border-bottom:1px solid rgba(255,255,255,.12);';
-                const details = document.createElement('details');
-                const summary = document.createElement('summary');
-                summary.style.cssText = 'cursor:pointer;padding:.5em 0;';
-                summary.textContent = user.Name;
-                const history = document.createElement('ul');
-                history.style.cssText = 'list-style:none;padding:0 0 0 1em;margin:0;';
-                const historyMessage = document.createElement('p');
-                historyMessage.className = 'fieldDescription';
-                historyMessage.textContent = 'Expand to load watch history.';
-                details.appendChild(summary);
-                details.appendChild(history);
-                details.appendChild(historyMessage);
-                details.addEventListener('toggle', function () {
-                    if (details.open && details.dataset.loaded !== 'true' && details.dataset.loading !== 'true') {
-                        loadUserWatchHistory(user, details, history, historyMessage);
-                    }
-                });
-                row.appendChild(details);
-                list.appendChild(row);
-            }
-            message.textContent = '';
-        } catch (err) {
-            if (section.isConnected) {
-                message.textContent = 'Could not load recently watched (' + errorText(err) + ').';
-            }
-            console.warn(LOG, 'could not load recently watched', err);
-        }
-    }
-
-    async function loadUserWatchHistory(user, details, list, message) {
-        details.dataset.loading = 'true';
-        message.textContent = 'Loading…';
-        try {
-            const apiClient = window.ApiClient;
-            const entries = await apiClient.getJSON(apiClient.getUrl(
-                'ProgressSync/RecentlyWatched/Users/' + encodeURIComponent(user.Id)));
-            list.innerHTML = '';
-            if (entries.length === 0) {
-                message.textContent = 'No recent watched movies or episodes.';
-                details.dataset.loaded = 'true';
-                return;
-            }
-
-            for (const entry of entries) {
-                const row = document.createElement('li');
-                row.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5em 1em;padding:.55em 0;border-bottom:1px solid rgba(255,255,255,.12);';
-                const title = document.createElement('a');
-                title.href = '#/details?id=' + encodeURIComponent(entry.ItemId);
-                title.className = 'button-link';
-                title.textContent = (entry.ItemType === 'Episode' ? 'Episode · ' : 'Movie · ') + entry.ItemName;
-                const date = document.createElement('span');
-                date.textContent = new Date(entry.LastPlayedDate).toLocaleString();
-                row.appendChild(title);
-                row.appendChild(date);
-                list.appendChild(row);
-            }
-            message.textContent = '';
-            details.dataset.loaded = 'true';
-        } catch (err) {
-            message.textContent = 'Could not load watch history (' + errorText(err) + ').';
-            console.warn(LOG, 'could not load user watch history', err);
-        } finally {
-            delete details.dataset.loading;
-        }
     }
 
     async function handleView(view, itemId) {
