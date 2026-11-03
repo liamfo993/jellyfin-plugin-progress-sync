@@ -240,10 +240,23 @@ public sealed class ProgressSyncController : ControllerBase
                     continue;
                 }
 
-                var itemName = item is Episode episode
-                    ? FormatEpisodeName(episode, caller)
-                    : item.Name;
-                items.Add(new RecentlyWatchedItemDto(item.Id, itemName, item is Episode ? "Episode" : "Movie", lastPlayedDate.Value));
+                var itemName = item.Name;
+                Guid? seriesId = null;
+                if (item is Episode episode)
+                {
+                    var visibleSeries = episode.SeriesId == Guid.Empty
+                        ? null
+                        : GetVisibleItem(episode.SeriesId, caller);
+                    itemName = FormatEpisodeName(episode, visibleSeries?.Name);
+                    seriesId = visibleSeries?.Id;
+                }
+
+                items.Add(new RecentlyWatchedItemDto(
+                    item.Id,
+                    itemName,
+                    item is Episode ? "Episode" : "Movie",
+                    lastPlayedDate.Value,
+                    seriesId));
                 if (items.Count == RecentlyWatchedLimit)
                 {
                     break;
@@ -259,13 +272,12 @@ public sealed class ProgressSyncController : ControllerBase
         return items;
     }
 
-    private string FormatEpisodeName(Episode episode, User caller)
+    private static string FormatEpisodeName(Episode episode, string? seriesName)
     {
         var parts = new List<string>(3);
-        var seriesName = episode.SeriesName;
-        if (string.IsNullOrWhiteSpace(seriesName) && episode.SeriesId != Guid.Empty)
+        if (string.IsNullOrWhiteSpace(seriesName) && episode.SeriesId == Guid.Empty)
         {
-            seriesName = GetVisibleItem(episode.SeriesId, caller)?.Name;
+            seriesName = episode.SeriesName;
         }
 
         if (!string.IsNullOrWhiteSpace(seriesName))

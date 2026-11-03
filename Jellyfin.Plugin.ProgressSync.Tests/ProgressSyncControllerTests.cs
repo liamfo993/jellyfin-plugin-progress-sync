@@ -216,6 +216,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(episode.Id, result[0].ItemId);
         Assert.Equal("Show - S01E02 - Pilot", result[0].ItemName);
         Assert.Equal("Episode", result[0].ItemType);
+        Assert.Equal(_series.Id, result[0].SeriesId);
         Assert.Equal(newerDate, result[0].LastPlayedDate);
         Assert.Equal(olderMovie.Id, result[1].ItemId);
         Assert.Equal("Movie", result[1].ItemType);
