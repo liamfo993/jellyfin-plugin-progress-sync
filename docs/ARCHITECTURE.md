@@ -90,7 +90,7 @@ settings page and verify that both users can access the selected item before cop
 | `POST /Items/{itemId}/CopyFrom/{sourceUserId}` | user | Copy progress to the caller |
 | `GET /Items/{itemId}/WatchStatus` | user | Enabled users' accessible movie or episode watch status |
 | `GET /RecentlyWatched/Users` | user | Enabled users for the watch history dashboard |
-| `GET /RecentlyWatched/Users/{userId}` | user | Up to 25 recent completed, accessible movies and episodes for a user |
+| `GET /RecentlyWatched/Users/{userId}` | user | Up to 25 recent completed, accessible movies and 25 episodes for a user |
 | `GET /Items/{itemId}/Links` | user | Links on the item's root visible to the caller |
 | `POST /Items/{itemId}/Links` | user | Create or update a link, then copy the partner's progress |
 | `DELETE /Links/{linkId}` | user | Remove a link the caller may remove (404 otherwise) |

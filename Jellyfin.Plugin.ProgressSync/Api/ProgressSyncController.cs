@@ -29,7 +29,7 @@ namespace Jellyfin.Plugin.ProgressSync.Api;
 [Authorize]
 public sealed class ProgressSyncController : ControllerBase
 {
-    private const int RecentlyWatchedLimit = 25;
+    private const int RecentlyWatchedPerTypeLimit = 25;
 
     // Jellyfin.Api.Constants.InternalClaimTypes.UserId; that assembly is not available to plugins.
     private const string UserIdClaimType = "Jellyfin-UserId";
@@ -209,14 +209,16 @@ public sealed class ProgressSyncController : ControllerBase
             return NotFound();
         }
 
-        var items = new List<RecentlyWatchedItemDto>(RecentlyWatchedLimit);
+        var items = new List<RecentlyWatchedItemDto>(RecentlyWatchedPerTypeLimit * 2);
+        var movieCount = 0;
+        var episodeCount = 0;
         var startIndex = 0;
-        while (items.Count < RecentlyWatchedLimit)
+        while (movieCount < RecentlyWatchedPerTypeLimit || episodeCount < RecentlyWatchedPerTypeLimit)
         {
             var result = _libraryManager.GetItemsResult(new InternalItemsQuery(user)
             {
                 Recursive = true,
-                Limit = RecentlyWatchedLimit,
+                Limit = RecentlyWatchedPerTypeLimit,
                 StartIndex = startIndex,
                 IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Episode],
                 IsPlayed = true,
@@ -234,6 +236,12 @@ public sealed class ProgressSyncController : ControllerBase
             var userData = _userDataManager.GetUserDataBatch(playedItems, user);
             foreach (var item in playedItems)
             {
+                if ((item is Movie && movieCount >= RecentlyWatchedPerTypeLimit)
+                    || (item is Episode && episodeCount >= RecentlyWatchedPerTypeLimit))
+                {
+                    continue;
+                }
+
                 var lastPlayedDate = userData.GetValueOrDefault(item.Id)?.LastPlayedDate;
                 if (lastPlayedDate is null || GetVisibleItem(item.Id, caller) is null)
                 {
@@ -257,13 +265,17 @@ public sealed class ProgressSyncController : ControllerBase
                     item is Episode ? "Episode" : "Movie",
                     lastPlayedDate.Value,
                     seriesId));
-                if (items.Count == RecentlyWatchedLimit)
+                if (item is Movie)
                 {
-                    break;
+                    movieCount++;
+                }
+                else
+                {
+                    episodeCount++;
                 }
             }
 
-            if (result.Items.Count < RecentlyWatchedLimit)
+            if (result.Items.Count < RecentlyWatchedPerTypeLimit)
             {
                 break;
             }
