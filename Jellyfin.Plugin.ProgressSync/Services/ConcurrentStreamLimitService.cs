@@ -125,7 +125,7 @@ public sealed class ConcurrentStreamLimitService : IHostedService
             try
             {
                 await _sessionManager.SendPlaystateCommand(
-                    string.Empty,
+                    session.Id,
                     session.Id,
                     new PlaystateRequest { Command = PlaystateCommand.Stop },
                     CancellationToken.None).ConfigureAwait(false);
