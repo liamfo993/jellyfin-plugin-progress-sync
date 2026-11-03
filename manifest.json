@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
             {
+                "version": "1.0.10.0",
+                "changelog": "Add movie and episode tabs with poster artwork to watch history.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.10.0/progress-sync_1.0.10.0.zip",
+                "checksum": "f6243869fb6c6b5095be38e89ce64c98",
+                "timestamp": "2026-11-03T19:31:50Z"
+            },
+            {
                 "version": "1.0.9.0",
                 "changelog": "Include series and episode details in watch history entries.",
                 "targetAbi": "12.1.0.0",
