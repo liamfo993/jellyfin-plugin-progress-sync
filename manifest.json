@@ -2,12 +2,20 @@
     {
         "guid": "c16569f5-02ed-4d6a-bbdb-649455e512d5",
         "name": "Progress Sync",
-        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages, watch status on movie and episode pages, a per-user watch history dashboard in the main menu, and per-user concurrent playback limits. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
+        "description": "Adds a \"Sync progress\" button to movie, series, season and episode pages, watch status on movie and episode pages, a watch history dashboard, separate playback-limits and progress-sync tabs, and per-user concurrent playback limits. Copy another user's resume position and watched state to your account once, or link a movie or series to keep it in sync (follow or two-way). Requires the File Transformation plugin.\n",
         "overview": "Sync and browse watch history between users",
         "owner": "liamfo993",
         "category": "General",
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
+            {
+                "version": "1.0.15.0",
+                "changelog": "Add dedicated playback limits and progress sync tabs, with a clearer setup experience.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.15.0/progress-sync_1.0.15.0.zip",
+                "checksum": "a066edbfa71b798af43513fffb086742",
+                "timestamp": "2026-11-03T21:13:04Z"
+            },
             {
                 "version": "1.0.14.0",
                 "changelog": "Add configurable per-user concurrent playback limits.",
