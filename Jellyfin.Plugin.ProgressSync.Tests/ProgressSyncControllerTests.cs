@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Api;
@@ -169,6 +170,62 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(50, bobStatus.ProgressPercent);
         Assert.Equal(400, Status(As(_alice).GetWatchStatus(_audio.Id)));
         Assert.Equal(403, Status(As(null).GetWatchStatus(_movie.Id)));
+    }
+
+    [Fact]
+    public void GetRecentlyWatched_ReturnsLatestAccessiblePlayedMoviesAcrossUsers()
+    {
+        var charlie = _server.AddUser("charlie");
+        var olderMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Older" });
+        var newerMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Newer" });
+        var hiddenMovie = _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Hidden" });
+        var olderDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var newerDate = olderDate.AddDays(1);
+        _server.RecentMovies[_alice.Id] = [olderMovie, hiddenMovie];
+        _server.RecentMovies[_bob.Id] = [newerMovie];
+        _server.RecentMovies[charlie.Id] = [hiddenMovie];
+        _server.Data[(_alice.Id, olderMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = olderDate };
+        _server.Data[(_alice.Id, hiddenMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate };
+        _server.Data[(_bob.Id, newerMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate };
+        _server.Data[(charlie.Id, hiddenMovie.Id)] = new UserItemData { Key = "key", Played = true, LastPlayedDate = newerDate.AddDays(1) };
+        _server.Hidden.Add((_bob.Id, hiddenMovie.Id));
+        _server.Hidden.Add((_alice.Id, newerMovie.Id));
+
+        var result = As(_bob).GetRecentlyWatched().Value!;
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(newerMovie.Id, result[0].ItemId);
+        Assert.Equal(_bob.Username, result[0].UserName);
+        Assert.Equal(newerDate, result[0].LastPlayedDate);
+        Assert.Equal(olderMovie.Id, result[1].ItemId);
+        Assert.Equal(_alice.Username, result[1].UserName);
+        Assert.Equal(olderDate, result[1].LastPlayedDate);
+        Assert.Equal(403, Status(As(null).GetRecentlyWatched()));
+    }
+
+    [Fact]
+    public void GetRecentlyWatched_LimitsResultsToTwentyFive()
+    {
+        var movies = Enumerable.Range(0, 30)
+            .Select(index => (BaseItem)_server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Movie " + index }))
+            .ToList();
+        var startDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        _server.RecentMovies[_alice.Id] = movies;
+        for (var index = 0; index < movies.Count; index++)
+        {
+            _server.Data[(_alice.Id, movies[index].Id)] = new UserItemData
+            {
+                Key = "key",
+                Played = true,
+                LastPlayedDate = startDate.AddMinutes(index)
+            };
+        }
+
+        var result = As(_alice).GetRecentlyWatched().Value!;
+
+        Assert.Equal(25, result.Count);
+        Assert.Equal(movies[29].Id, result[0].ItemId);
+        Assert.Equal(movies[5].Id, result[^1].ItemId);
     }
 
     [Fact]

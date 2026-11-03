@@ -6,6 +6,7 @@ using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Querying;
 using Moq;
 
 namespace Jellyfin.Plugin.ProgressSync.Tests;
@@ -21,6 +22,22 @@ internal sealed class FakeServer
         UserData
             .Setup(m => m.GetUserDataBatch(It.IsAny<IReadOnlyList<BaseItem>>(), It.IsAny<User>()))
             .Returns((IReadOnlyList<BaseItem> items, User user) => items.ToDictionary(i => i.Id, i => Get(user.Id, i.Id)));
+
+        Library
+            .Setup(m => m.GetItemsResult(It.IsAny<InternalItemsQuery>()))
+            .Returns((InternalItemsQuery query) =>
+            {
+                var items = (RecentMovies.GetValueOrDefault(query.User?.Id ?? Guid.Empty) ?? [])
+                    .Where(item => query.User is null
+                        || (!Hidden.Contains((query.User.Id, item.Id))
+                            && Get(query.User.Id, item.Id).Played))
+                    .OrderByDescending(item => query.User is null ? null : Get(query.User.Id, item.Id).LastPlayedDate)
+                    .ToList();
+                return new QueryResult<BaseItem>(items
+                    .Skip(query.StartIndex ?? 0)
+                    .Take(query.Limit ?? items.Count)
+                    .ToArray());
+            });
 
         UserData
             .Setup(m => m.SaveUserData(It.IsAny<User>(), It.IsAny<BaseItem>(), It.IsAny<UserItemData>(), It.IsAny<UserDataSaveReason>(), It.IsAny<CancellationToken>()))
@@ -51,6 +68,8 @@ internal sealed class FakeServer
     public Mock<IUserManager> Users { get; } = new();
 
     public Dictionary<(Guid User, Guid Item), UserItemData> Data { get; } = [];
+
+    public Dictionary<Guid, List<BaseItem>> RecentMovies { get; } = [];
 
     public List<(Guid User, Guid Item, UserDataSaveReason Reason)> Saves { get; } = [];
 

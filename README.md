@@ -9,8 +9,8 @@ Copy or sync watch progress between users on the same Jellyfin server.
 ![The Sync progress dialog on a series page](docs/images/dialog.png)
 
 Progress Sync adds a sync button to movie, series, season and episode pages in the Jellyfin web
-client. Use it to take over another user's progress once, or to link a title so your progress
-stays in step as you watch.
+client, plus a recently watched list on the home page. Use it to take over another user's progress
+once, or to link a title so your progress stays in step as you watch.
 
 Only watch progress is copied: resume position, watched state, play count and last played date.
 Favorites, ratings and audio/subtitle choices are left alone.
@@ -48,6 +48,9 @@ Open a title and click the sync button next to the other actions.
 On movie and episode pages, **Watch status** shows each enabled user's watched, unwatched, or
 in-progress status. Progress is shown as a percentage when the item's runtime is available.
 
+The home page includes the 25 most recent completed movie watches across enabled users, with the
+watcher and date. Movies you cannot access are omitted.
+
 **Copy once** replaces your progress with another user's:
 
 | Page    | What is copied                    |
@@ -82,6 +85,8 @@ Progress Sync is meant for households whose members trust each other:
 - Every user can see the other enabled users and their progress status for items they can access.
   Items hidden by library access or parental controls are listed as unavailable. People are not told
   when someone follows them.
+- The recently watched home-page list shows who watched each movie and when, and only includes
+  movies the current user can access.
 - With a two-way link, your partner's actions on that title, such as marking it unwatched, change
   your progress too. There is no undo.
 
