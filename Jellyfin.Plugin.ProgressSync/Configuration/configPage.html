@@ -4,115 +4,70 @@
     <meta charset="utf-8">
     <title>Progress Sync</title>
     <style>
-        #progressSyncConfigPage button,
-        #progressSyncConfigPage .emby-button {
-            background: #2196f3 !important;
-            background-color: #2196f3 !important;
-            background-image: none !important;
-            border-color: #1976d2 !important;
-            color: #000 !important;
-            --button-background: #2196f3;
-            --button-background-hover: #42a5f5;
-            --button-foreground: #000;
-        }
-
-        #progressSyncConfigPage button:hover,
-        #progressSyncConfigPage .emby-button:hover {
-            background: #42a5f5 !important;
-            background-color: #42a5f5 !important;
-            border-color: #1976d2 !important;
-            color: #000 !important;
-        }
-
-        #progressSyncConfigPage button:disabled,
-        #progressSyncConfigPage .emby-button:disabled {
-            background: #2196f3 !important;
-            color: #000 !important;
-        }
-
-        #progressSyncConfigPage .emby-button > span,
-        #progressSyncConfigPage button > span {
-            color: #000 !important;
-        }
-
         #progressSyncConfigPage {
             --ps-accent: #00a4dc;
             --ps-card: rgba(255, 255, 255, .055);
             --ps-border: rgba(255, 255, 255, .1);
         }
 
-        #progressSyncConfigPage [hidden] {
-            display: none !important;
-        }
-
-        #progressSyncConfigPage .ps-settings-hero,
-        #progressSyncConfigPage .ps-settings-section {
-            margin-bottom: 1.25em;
+        #progressSyncConfigPage .ps-hero,
+        #progressSyncConfigPage .ps-panel,
+        #progressSyncConfigPage .ps-info-card {
             border: 1px solid var(--ps-border);
             border-radius: 12px;
             background: var(--ps-card);
         }
 
-        #progressSyncConfigPage .ps-settings-hero {
+        #progressSyncConfigPage .ps-hero {
             padding: 1.5em;
+            margin: 0 0 1.25em;
             border-color: rgba(0, 164, 220, .24);
             background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
         }
 
-        #progressSyncConfigPage .ps-settings-hero h1 {
-            margin: 0 0 .4em;
+        #progressSyncConfigPage .ps-hero h1 {
+            margin: 0 0 .35em;
             font-size: 1.8em;
         }
 
         #progressSyncConfigPage .ps-settings-guide {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: .75em;
-            margin-top: 1.2em;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: .85em;
+            margin: 0 0 1.25em;
         }
 
         #progressSyncConfigPage .ps-guide-card {
-            padding: .85em 1em;
+            padding: 1em 1.1em;
             border: 1px solid var(--ps-border);
-            border-radius: 9px;
-            background: rgba(0, 0, 0, .12);
+            border-radius: 12px;
+            background: var(--ps-card);
         }
 
         #progressSyncConfigPage .ps-guide-card strong {
             display: block;
-            margin-bottom: .3em;
+            margin-bottom: .35em;
         }
 
-        #progressSyncConfigPage .ps-section-heading {
+        #progressSyncConfigPage .ps-panel {
+            padding: 1.25em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncConfigPage .ps-panel-header {
             display: flex;
-            align-items: flex-start;
-            gap: .85em;
-            padding: 1.1em 1.25em;
-            border-bottom: 1px solid var(--ps-border);
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75em;
+            margin-bottom: 1em;
         }
 
-        #progressSyncConfigPage .ps-section-number {
-            display: grid;
-            width: 2em;
-            height: 2em;
-            flex: 0 0 2em;
-            place-items: center;
-            border-radius: 50%;
-            background: rgba(0, 164, 220, .2);
-            color: var(--ps-accent);
-            font-weight: 700;
+        #progressSyncConfigPage .ps-panel-header h2 {
+            margin: 0 0 .25em;
         }
 
-        #progressSyncConfigPage .ps-section-heading h2 {
-            margin: 0 0 .3em;
-            font-size: 1.25em;
-        }
-
-        #progressSyncConfigPage .ps-section-content {
-            padding: 1em 1.25em 1.25em;
-        }
-
-        #progressSyncConfigPage .ps-settings-section form {
+        #progressSyncConfigPage .ps-panel form {
             max-width: none;
         }
 
@@ -123,7 +78,7 @@
             padding: .85em 1em;
             margin: 0 0 1.25em;
             border: 1px solid var(--ps-border);
-            border-radius: 9px;
+            border-radius: 12px;
             background: var(--ps-card);
         }
 
@@ -210,14 +165,14 @@
             gap: .8em 1.25em;
             padding: 1em 1.1em;
             border: 1px solid var(--ps-border);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, .035);
+            border-radius: 12px;
+            background: var(--ps-card);
             transition: border-color .16s ease, background .16s ease;
         }
 
         #progressSyncConfigPage .ps-sync-card:hover {
             border-color: rgba(0, 164, 220, .4);
-            background: rgba(0, 164, 220, .055);
+            background: rgba(0, 164, 220, .08);
         }
 
         #progressSyncConfigPage .ps-sync-main {
@@ -327,14 +282,8 @@
         }
 
         @media (max-width: 600px) {
-            #progressSyncConfigPage .ps-settings-hero {
+            #progressSyncConfigPage .ps-hero {
                 padding: 1.1em;
-            }
-
-            #progressSyncConfigPage .ps-section-heading,
-            #progressSyncConfigPage .ps-section-content {
-                padding-right: .9em;
-                padding-left: .9em;
             }
 
             #progressSyncConfigPage .ps-search-row,
@@ -362,27 +311,26 @@
     <div id="progressSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs" data-controller="__plugin/ProgressSync.js" data-ps-tab-index="2" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
-                <header class="ps-settings-hero">
+                <header class="ps-hero">
                     <h1>Progress sync</h1>
                     <p class="fieldDescription">Copy watch progress once, or keep users in sync automatically. These controls affect playback position and watched status—not ratings, favorites, or subtitles.</p>
-                    <div class="ps-settings-guide" aria-label="Progress sync modes">
-                        <div class="ps-guide-card"><strong>Copy once</strong><span class="fieldDescription">One-time change</span></div>
-                        <div class="ps-guide-card"><strong>One-way</strong><span class="fieldDescription">Source → target</span></div>
-                        <div class="ps-guide-card"><strong>Two-way</strong><span class="fieldDescription">Both users stay in sync</span></div>
-                    </div>
                 </header>
+                <div class="ps-settings-guide" aria-label="Progress sync modes">
+                    <div class="ps-guide-card"><strong>Copy once</strong><span class="fieldDescription">One-time change</span></div>
+                    <div class="ps-guide-card"><strong>One-way</strong><span class="fieldDescription">Source → target</span></div>
+                    <div class="ps-guide-card"><strong>Two-way</strong><span class="fieldDescription">Both users stay in sync</span></div>
+                </div>
                 <div id="psFtStatus" class="ps-integration-status" role="status" aria-live="polite">
                     <span class="ps-integration-indicator" aria-hidden="true"></span>
                 </div>
-                <section class="ps-settings-section">
-                    <div class="ps-section-heading">
-                        <span class="ps-section-number" aria-hidden="true">1</span>
+                <section class="ps-panel">
+                    <div class="ps-panel-header">
                         <div>
-                            <h2>Copy progress or start a sync</h2>
+                            <h2 class="sectionTitle">Copy progress or start a sync</h2>
                             <div class="fieldDescription">Choose a title and users, then decide whether to copy progress once or keep it in sync.</div>
                         </div>
                     </div>
-                    <div class="ps-section-content">
+                    <div class="ps-panel-content">
                         <form id="psSetupForm">
                             <div class="ps-search-row">
                                 <div class="inputContainer">
@@ -390,7 +338,7 @@
                                     <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
                                     <div class="fieldDescription">Movies, series, and music. Enter at least two characters.</div>
                                 </div>
-                                <button id="psSearchItems" type="button" class="emby-button">
+                                <button id="psSearchItems" type="button" class="emby-button raised">
                                     <span>Search</span>
                                 </button>
                             </div>
@@ -427,28 +375,26 @@
                         </form>
                     </div>
                 </section>
-                <section class="ps-settings-section">
-                    <div class="ps-section-heading">
-                        <span class="ps-section-number" aria-hidden="true">2</span>
+                <section class="ps-panel">
+                    <div class="ps-panel-header">
                         <div>
-                            <h2>Active syncs <span id="psSyncCount" class="ps-sync-badge">0</span></h2>
+                            <h2 class="sectionTitle">Active syncs <span id="psSyncCount" class="ps-sync-badge">0</span></h2>
                             <div class="fieldDescription">These keep updating progress automatically. Deactivate one to stop future updates.</div>
                         </div>
                     </div>
-                    <div class="ps-section-content">
+                    <div class="ps-panel-content">
                         <div id="psLinks" class="ps-sync-list"></div>
                         <div id="psActiveStatus" class="ps-status" role="status" aria-live="polite"></div>
                     </div>
                 </section>
-                <section class="ps-settings-section">
-                    <div class="ps-section-heading">
-                        <span class="ps-section-number" aria-hidden="true">3</span>
+                <section class="ps-panel">
+                    <div class="ps-panel-header">
                         <div>
-                            <h2>Library-wide sync</h2>
+                            <h2 class="sectionTitle">Library-wide sync</h2>
                             <div class="fieldDescription">Automatically sync selected media types for these users. This applies to future changes only.</div>
                         </div>
                     </div>
-                    <div class="ps-section-content">
+                    <div class="ps-panel-content">
                         <div class="ps-global-note fieldDescription">Unlike a title sync, this does not copy existing progress when created. It starts syncing as users make new progress.</div>
                         <form id="psGlobalForm">
                             <div class="ps-form-grid">
@@ -501,19 +447,6 @@
                 var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
                 var globalUsers = [];
                 var globalSettings = null;
-
-                function applyButtonColors(button) {
-                    button.style.setProperty('background', '#2196f3', 'important');
-                    button.style.setProperty('background-color', '#2196f3', 'important');
-                    button.style.setProperty('background-image', 'none', 'important');
-                    button.style.setProperty('border-color', '#1976d2', 'important');
-                    button.style.setProperty('color', '#000', 'important');
-                    button.querySelectorAll('span').forEach(function (span) {
-                        span.style.setProperty('color', '#000', 'important');
-                    });
-                }
-
-                page.querySelectorAll('button').forEach(applyButtonColors);
 
                 function loadGlobalSettings(data) {
                     globalUsers = data.Users;
@@ -705,10 +638,11 @@
                     var button = document.createElement('button');
                     button.setAttribute('is', 'emby-button');
                     button.type = 'button';
-                    button.className = 'emby-button';
-                    button.textContent = actionText;
+                    button.className = 'emby-button raised';
+                    var buttonLabel = document.createElement('span');
+                    buttonLabel.textContent = actionText;
+                    button.appendChild(buttonLabel);
                     button.setAttribute('aria-label', actionText + ' ' + titleText);
-                    applyButtonColors(button);
                     button.addEventListener('click', function () {
                         onAction(button);
                     });
