@@ -123,12 +123,14 @@
 
         #progressSyncWatchHistory .ps-history-tabs {
             display: flex;
+            overflow-x: auto;
             gap: .5em;
             margin-bottom: 1em;
             border-bottom: 1px solid var(--ps-border);
         }
 
         #progressSyncWatchHistory .ps-history-tab {
+            flex: 0 0 auto;
             padding: .7em 1em;
             border: 0;
             border-bottom: 3px solid transparent;
@@ -136,6 +138,7 @@
             color: var(--secondary-text-color, #aaa);
             cursor: pointer;
             font: inherit;
+            white-space: nowrap;
         }
 
         #progressSyncWatchHistory .ps-history-tab[aria-selected="true"] {
@@ -214,6 +217,30 @@
             font-size: .88em;
         }
 
+        #progressSyncWatchHistory .ps-history-progress {
+            display: grid;
+            gap: .35em;
+        }
+
+        #progressSyncWatchHistory .ps-history-progress-track {
+            height: .4em;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .16);
+        }
+
+        #progressSyncWatchHistory .ps-history-progress-fill {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--ps-accent);
+        }
+
+        #progressSyncWatchHistory .ps-history-progress-label {
+            color: var(--secondary-text-color, #aaa);
+            font-size: .82em;
+        }
+
         #progressSyncWatchHistory .ps-history-empty {
             grid-column: 1 / -1;
             padding: 1.25em;
@@ -239,7 +266,7 @@
         <div class="content-primary">
             <header class="ps-hero">
                 <h1>Watch History</h1>
-                <p class="fieldDescription">See what everyone has been watching lately. Expand a user to browse their latest movies and episodes.</p>
+                <p class="fieldDescription">See what everyone has watched and is still watching. Expand a user to browse recent movies, episodes, and in-progress titles.</p>
             </header>
             <div class="ps-metrics" aria-label="Watch history overview">
                 <div class="ps-metric">
@@ -248,7 +275,7 @@
                 </div>
                 <div class="ps-metric">
                     <span class="ps-metric-value">25</span>
-                    <span class="fieldDescription">Recent items per user</span>
+                    <span class="fieldDescription">Items per history tab</span>
                 </div>
                 <div class="ps-metric">
                     <span class="ps-metric-value">Movies + TV</span>

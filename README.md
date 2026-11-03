@@ -49,10 +49,10 @@ On movie and episode pages, **Watch status** shows each enabled user's watched, 
 in-progress status. Progress is shown as a percentage when the item's runtime is available.
 
 Open **Watch History** from the main menu to see an activity dashboard. Expand a user to see their
-up to 25 of their most recent completed movies and 25 most recent completed episodes, each with
-watch dates. Episode entries include the series name, season/episode number, and episode title.
-Separate Movies and Episodes tabs show poster cards when artwork is available. Items you cannot
-access are omitted.
+up to 25 of their most recent completed movies and up to 25 completed episodes, plus separate
+in-progress movie and episode lists with up to 25 items each. In-progress cards show a progress bar
+and percentage when runtime is available. Episode entries include the series name,
+season/episode number, and episode title. Items you cannot access are omitted.
 
 **Copy once** replaces your progress with another user's:
 

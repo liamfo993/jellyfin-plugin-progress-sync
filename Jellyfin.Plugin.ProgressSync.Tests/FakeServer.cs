@@ -30,7 +30,7 @@ internal sealed class FakeServer
                 var items = (RecentItems.GetValueOrDefault(query.User?.Id ?? Guid.Empty) ?? [])
                     .Where(item => query.User is null
                         || (!Hidden.Contains((query.User.Id, item.Id))
-                            && Get(query.User.Id, item.Id).Played))
+                            && (query.IsPlayed is null || Get(query.User.Id, item.Id).Played == query.IsPlayed)))
                     .Where(item => query.IncludeItemTypes.Length == 0
                         || query.IncludeItemTypes.Contains(item switch
                         {

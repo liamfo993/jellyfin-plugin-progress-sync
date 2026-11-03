@@ -184,7 +184,7 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Lists a user's 25 most recent completed movie and episode watches that the caller can access.
+    /// Lists a user's 25 most recent completed movie and episode watches of each type that the caller can access.
     /// </summary>
     /// <param name="userId">The user whose watch history to list.</param>
     /// <response code="200">Watch history returned.</response>
@@ -209,6 +209,40 @@ public sealed class ProgressSyncController : ControllerBase
             return NotFound();
         }
 
+        return GetUserHistory(user, caller, inProgress: false).ToList();
+    }
+
+    /// <summary>
+    /// Lists a user's 25 most recent partially watched movies and episodes of each type that the caller can access.
+    /// </summary>
+    /// <param name="userId">The user whose in-progress history to list.</param>
+    /// <response code="200">In-progress items returned.</response>
+    /// <response code="403">The caller is not a user.</response>
+    /// <response code="404">The selected user is not found or is disabled.</response>
+    /// <returns>The user's in-progress items, newest first.</returns>
+    [HttpGet("InProgress/Users/{userId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<IReadOnlyList<RecentlyWatchedItemDto>> GetUserInProgress([FromRoute] Guid userId)
+    {
+        var caller = GetCurrentUser();
+        if (caller is null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var user = GetEnabledUser(userId);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        return GetUserHistory(user, caller, inProgress: true).ToList();
+    }
+
+    private IReadOnlyList<RecentlyWatchedItemDto> GetUserHistory(User user, User caller, bool inProgress)
+    {
         var items = new List<RecentlyWatchedItemDto>(RecentlyWatchedPerTypeLimit * 2);
         var movieCount = 0;
         var episodeCount = 0;
@@ -221,7 +255,7 @@ public sealed class ProgressSyncController : ControllerBase
                 Limit = RecentlyWatchedPerTypeLimit,
                 StartIndex = startIndex,
                 IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Episode],
-                IsPlayed = true,
+                IsPlayed = !inProgress,
                 IsVirtualItem = false,
                 EnableTotalRecordCount = false,
                 OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)]
@@ -242,8 +276,13 @@ public sealed class ProgressSyncController : ControllerBase
                     continue;
                 }
 
-                var lastPlayedDate = userData.GetValueOrDefault(item.Id)?.LastPlayedDate;
-                if (lastPlayedDate is null || GetVisibleItem(item.Id, caller) is null)
+                var data = userData.GetValueOrDefault(item.Id);
+                var lastPlayedDate = data?.LastPlayedDate;
+                var playbackPositionTicks = data?.PlaybackPositionTicks ?? 0;
+                if (lastPlayedDate is null
+                    || (inProgress && (data?.Played != false || playbackPositionTicks <= 0))
+                    || (!inProgress && data?.Played != true)
+                    || GetVisibleItem(item.Id, caller) is null)
                 {
                     continue;
                 }
@@ -259,12 +298,17 @@ public sealed class ProgressSyncController : ControllerBase
                     seriesId = visibleSeries?.Id;
                 }
 
+                int? progressPercent = inProgress && item.RunTimeTicks is > 0
+                    ? Math.Clamp((int)Math.Round((double)playbackPositionTicks / item.RunTimeTicks.Value * 100), 0, 99)
+                    : null;
                 items.Add(new RecentlyWatchedItemDto(
                     item.Id,
                     itemName,
                     item is Episode ? "Episode" : "Movie",
                     lastPlayedDate.Value,
-                    seriesId));
+                    seriesId,
+                    progressPercent,
+                    inProgress));
                 if (item is Movie)
                 {
                     movieCount++;

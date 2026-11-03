@@ -75,75 +75,92 @@ export default function (view) {
         message.textContent = 'Expand to load recent activity.';
 
         const userKey = user.Id.replace(/[^a-zA-Z0-9_-]/g, '');
-        const moviePanelId = 'ps-history-movies-' + userKey;
-        const episodePanelId = 'ps-history-episodes-' + userKey;
         const tabs = document.createElement('div');
         tabs.className = 'ps-history-tabs';
         tabs.setAttribute('role', 'tablist');
         tabs.setAttribute('aria-label', user.Name + ' watch history');
-
-        const movieTab = createHistoryTab('Movies', moviePanelId, true);
-        const episodeTab = createHistoryTab('Episodes', episodePanelId, false);
-        const movieGrid = createHistoryGrid(moviePanelId);
-        const episodeGrid = createHistoryGrid(episodePanelId);
-        movieGrid.hidden = true;
-        episodeGrid.hidden = true;
+        const historyViews = [
+            { key: 'movies', label: 'Movies', itemType: 'Movie', inProgress: false },
+            { key: 'episodes', label: 'Episodes', itemType: 'Episode', inProgress: false },
+            { key: 'inProgressMovies', label: 'In-progress movies', itemType: 'Movie', inProgress: true },
+            { key: 'inProgressEpisodes', label: 'In-progress episodes', itemType: 'Episode', inProgress: true }
+        ].map((viewConfig, index) => {
+            const panelId = 'ps-history-' + viewConfig.key + '-' + userKey;
+            const tab = createHistoryTab(viewConfig.label, panelId, index === 0);
+            const grid = createHistoryGrid(panelId);
+            grid.hidden = true;
+            return { ...viewConfig, tab, grid };
+        });
         tabs.hidden = true;
 
-        movieTab.addEventListener('click', function () {
-            showHistoryTab(movieTab, movieGrid, episodeTab, episodeGrid);
-        });
-        episodeTab.addEventListener('click', function () {
-            showHistoryTab(episodeTab, episodeGrid, movieTab, movieGrid);
-        });
+        for (const viewConfig of historyViews) {
+            viewConfig.tab.addEventListener('click', function () {
+                showHistoryTab(viewConfig, historyViews);
+            });
+        }
         tabs.addEventListener('keydown', function (event) {
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
                 return;
             }
 
             event.preventDefault();
-            const nextTab = event.key === 'ArrowRight' ? episodeTab : movieTab;
-            const nextGrid = event.key === 'ArrowRight' ? episodeGrid : movieGrid;
-            const previousTab = event.key === 'ArrowRight' ? movieTab : episodeTab;
-            const previousGrid = event.key === 'ArrowRight' ? movieGrid : episodeGrid;
-            showHistoryTab(nextTab, nextGrid, previousTab, previousGrid);
-            nextTab.focus();
+            const currentIndex = historyViews.findIndex(viewConfig => viewConfig.tab === event.target);
+            if (currentIndex < 0) {
+                return;
+            }
+
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const nextIndex = (currentIndex + direction + historyViews.length) % historyViews.length;
+            const nextView = historyViews[nextIndex];
+            showHistoryTab(nextView, historyViews);
+            nextView.tab.focus();
         });
 
-        tabs.append(movieTab, episodeTab);
-        content.append(message, tabs, movieGrid, episodeGrid);
+        tabs.append(...historyViews.map(viewConfig => viewConfig.tab));
+        content.append(message, tabs, ...historyViews.map(viewConfig => viewConfig.grid));
         card.append(summary, content);
         card.addEventListener('toggle', function () {
             if (card.open && card.dataset.loaded !== 'true' && card.dataset.loading !== 'true') {
-                loadUserHistory(user, card, hint, message, tabs, movieTab, movieGrid, episodeTab, episodeGrid);
+                loadUserHistory(user, card, hint, message, tabs, historyViews);
             }
         });
 
         return card;
     }
 
-    async function loadUserHistory(user, card, hint, message, tabs, movieTab, movieGrid, episodeTab, episodeGrid) {
+    async function loadUserHistory(user, card, hint, message, tabs, historyViews) {
         card.dataset.loading = 'true';
         message.textContent = 'Loading watch history…';
         message.hidden = false;
         hint.textContent = 'Loading…';
         try {
-            const items = await ApiClient.getJSON(ApiClient.getUrl(
-                'ProgressSync/RecentlyWatched/Users/' + encodeURIComponent(user.Id)));
+            const encodedUserId = encodeURIComponent(user.Id);
+            const [watchedItems, inProgressItems] = await Promise.all([
+                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/RecentlyWatched/Users/' + encodedUserId)),
+                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/InProgress/Users/' + encodedUserId))
+            ]);
             if (!card.isConnected) {
                 return;
             }
 
-            const movies = items.filter(item => item.ItemType === 'Movie');
-            const episodes = items.filter(item => item.ItemType === 'Episode');
-            populateHistoryGrid(movieGrid, movies, 'No recent movies.');
-            populateHistoryGrid(episodeGrid, episodes, 'No recent episodes.');
-            movieTab.textContent = 'Movies (' + movies.length + ')';
-            episodeTab.textContent = 'Episodes (' + episodes.length + ')';
+            const allItems = [...watchedItems, ...inProgressItems];
+            for (const viewConfig of historyViews) {
+                const items = allItems.filter(item =>
+                    item.ItemType === viewConfig.itemType
+                    && item.InProgress === viewConfig.inProgress);
+                populateHistoryGrid(
+                    viewConfig.grid,
+                    items,
+                    viewConfig.inProgress
+                        ? 'No in-progress ' + viewConfig.itemType.toLowerCase() + 's.'
+                        : 'No recent ' + viewConfig.itemType.toLowerCase() + 's.');
+                viewConfig.tab.textContent = viewConfig.label + ' (' + items.length + ')';
+            }
+
             message.hidden = true;
             tabs.hidden = false;
-            showHistoryTab(movieTab, movieGrid, episodeTab, episodeGrid);
-            hint.textContent = movies.length + ' movies · ' + episodes.length + ' episodes';
+            showHistoryTab(historyViews[0], historyViews);
+            hint.textContent = allItems.length + ' recent and in-progress items';
             card.dataset.loaded = 'true';
         } catch (error) {
             message.textContent = 'Could not load history (' + errorText(error) + ').';
@@ -177,13 +194,13 @@ function createHistoryGrid(id) {
     return grid;
 }
 
-function showHistoryTab(selectedTab, selectedGrid, otherTab, otherGrid) {
-    selectedTab.setAttribute('aria-selected', 'true');
-    selectedTab.tabIndex = 0;
-    otherTab.setAttribute('aria-selected', 'false');
-    otherTab.tabIndex = -1;
-    selectedGrid.hidden = false;
-    otherGrid.hidden = true;
+function showHistoryTab(selectedView, historyViews) {
+    for (const viewConfig of historyViews) {
+        const isSelected = viewConfig === selectedView;
+        viewConfig.tab.setAttribute('aria-selected', String(isSelected));
+        viewConfig.tab.tabIndex = isSelected ? 0 : -1;
+        viewConfig.grid.hidden = !isSelected;
+    }
 }
 
 function populateHistoryGrid(grid, items, emptyMessage) {
@@ -238,6 +255,31 @@ function createHistoryCard(item) {
     date.textContent = formatDate(item.LastPlayedDate);
 
     details.append(title, date);
+    if (item.ProgressPercent !== null && item.ProgressPercent !== undefined) {
+        const progress = document.createElement('div');
+        progress.className = 'ps-history-progress';
+        progress.setAttribute('role', 'group');
+        progress.setAttribute('aria-label', item.ProgressPercent + '% watched');
+
+        const progressTrack = document.createElement('div');
+        progressTrack.className = 'ps-history-progress-track';
+        progressTrack.setAttribute('role', 'progressbar');
+        progressTrack.setAttribute('aria-valuemin', '0');
+        progressTrack.setAttribute('aria-valuemax', '100');
+        progressTrack.setAttribute('aria-valuenow', String(item.ProgressPercent));
+
+        const progressFill = document.createElement('span');
+        progressFill.className = 'ps-history-progress-fill';
+        progressFill.style.width = item.ProgressPercent + '%';
+        progressTrack.appendChild(progressFill);
+
+        const progressLabel = document.createElement('span');
+        progressLabel.className = 'ps-history-progress-label';
+        progressLabel.textContent = item.ProgressPercent + '% watched';
+        progress.append(progressTrack, progressLabel);
+        details.appendChild(progress);
+    }
+
     card.append(poster, details);
     return card;
 }

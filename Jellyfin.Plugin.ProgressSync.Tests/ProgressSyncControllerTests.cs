@@ -300,6 +300,70 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
+    public void GetUserInProgress_ReturnsTwentyFiveMostRecentMoviesAndEpisodesWithProgress()
+    {
+        var movies = Enumerable.Range(0, 30)
+            .Select(index => (BaseItem)_server.AddItem(new Movie
+            {
+                Id = Guid.NewGuid(),
+                Name = "Movie " + index,
+                RunTimeTicks = 1000
+            }))
+            .ToList();
+        var episodes = Enumerable.Range(0, 30)
+            .Select(index => (BaseItem)_server.AddItem(new Episode
+            {
+                Id = Guid.NewGuid(),
+                Name = "Episode " + index,
+                SeriesId = _series.Id,
+                ParentIndexNumber = 1,
+                IndexNumber = index + 1,
+                RunTimeTicks = 1000
+            }))
+            .ToList();
+        _server.RecentItems[_alice.Id] = movies.Zip(episodes)
+            .SelectMany(pair => new[] { pair.First, pair.Second })
+            .ToList();
+        var startDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        for (var index = 0; index < 30; index++)
+        {
+            var lastPlayedDate = startDate.AddMinutes(index);
+            _server.Data[(_alice.Id, movies[index].Id)] = new UserItemData
+            {
+                Key = "key",
+                Played = false,
+                PlaybackPositionTicks = index * 10L,
+                LastPlayedDate = lastPlayedDate
+            };
+            _server.Data[(_alice.Id, episodes[index].Id)] = new UserItemData
+            {
+                Key = "key",
+                Played = false,
+                PlaybackPositionTicks = index * 10L,
+                LastPlayedDate = lastPlayedDate
+            };
+        }
+
+        var result = As(_alice).GetUserInProgress(_alice.Id).Value!;
+        var movieResults = result.Where(item => item.ItemType == "Movie").ToList();
+        var episodeResults = result.Where(item => item.ItemType == "Episode").ToList();
+
+        Assert.Equal(50, result.Count);
+        Assert.Equal(25, movieResults.Count);
+        Assert.Equal("Movie 29", movieResults[0].ItemName);
+        Assert.Equal(29, movieResults[0].ProgressPercent);
+        Assert.True(movieResults[0].InProgress);
+        Assert.Equal("Movie 5", movieResults[^1].ItemName);
+        Assert.Equal(5, movieResults[^1].ProgressPercent);
+        Assert.Equal(25, episodeResults.Count);
+        Assert.Equal("Show - S01E30 - Episode 29", episodeResults[0].ItemName);
+        Assert.Equal(_series.Id, episodeResults[0].SeriesId!.Value);
+        Assert.Equal(29, episodeResults[0].ProgressPercent);
+        Assert.Equal(404, Status(As(_alice).GetUserInProgress(Guid.NewGuid())));
+        Assert.Equal(403, Status(As(null).GetUserInProgress(_alice.Id)));
+    }
+
+    [Fact]
     public void CreateLink_ValidatesModePartnerAndAccess()
     {
         var bob = As(_bob);
