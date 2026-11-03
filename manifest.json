@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
             {
+                "version": "1.0.19.0",
+                "changelog": "Fix library-wide media scope checkbox and label spacing.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.19.0/progress-sync_1.0.19.0.zip",
+                "checksum": "9dc3d59f0dbdc1be1d26e92fa4167d6c",
+                "timestamp": "2026-11-03T22:02:06Z"
+            },
+            {
                 "version": "1.0.18.0",
                 "changelog": "Ensure progress sync tab styles load in Jellyfin's embedded configuration page.",
                 "targetAbi": "12.1.0.0",
