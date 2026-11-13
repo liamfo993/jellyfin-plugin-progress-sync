@@ -82,6 +82,10 @@ review active links, and deactivate them from the **Progress sync** tab. Use the
 per-user concurrent playback caps. These tabs are available from the Progress Sync page in the
 Plugins menu.
 
+In the admin **Progress sync** tab, the Series category defaults to entire series; choose Episodes
+to copy or continuously sync an individual episode. A series link still covers all its episodes.
+The sync button on an episode page continues to create a whole-series link.
+
 Admins can also create multiple global sync profiles, each with its own source and target users,
 one-way or two-way direction, and movie, series, and music scopes. Profiles appear in the active
 continuous sync list and can be deactivated individually. Global profiles apply to future progress

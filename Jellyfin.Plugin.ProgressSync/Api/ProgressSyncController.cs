@@ -376,7 +376,7 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Lists the links on an item's series or movie that the calling user can see.
+    /// Lists the links on an item or its series that the calling user can see.
     /// </summary>
     /// <param name="itemId">A movie, episode, season or series.</param>
     /// <response code="200">Links returned.</response>
@@ -403,14 +403,20 @@ public sealed class ProgressSyncController : ControllerBase
             return NotFound();
         }
 
-        if (LinkRules.ResolveRoot(item) is not { } rootId)
+        var rootId = LinkRules.ResolveRoot(item);
+        if (rootId is null && item is not Episode)
         {
             return BadRequest("Item cannot be linked.");
         }
 
-        return _store.Snapshot.ForRoot(rootId)
+        var snapshot = _store.Snapshot;
+        var links = rootId is { } id ? snapshot.ForRoot(id) : [];
+        var episodeLinks = item is Episode && item.Id != rootId
+            ? snapshot.ForRoot(item.Id)
+            : [];
+        return links.Concat(episodeLinks)
             .Where(l => LinkRules.IsVisibleTo(l, me.Id))
-            .Select(l => ToDto(l, me.Id))
+            .Select(l => ToDto(l, me.Id, item is Episode && l.RootItemId == item.Id))
             .OfType<LinkDto>()
             .OrderBy(l => l.PartnerName, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -561,7 +567,7 @@ public sealed class ProgressSyncController : ControllerBase
                 l.Id,
                 _userManager.GetUserById(l.CreatorUserId)?.Username ?? "(deleted)",
                 _userManager.GetUserById(l.PartnerUserId)?.Username ?? "(deleted)",
-                _libraryManager.GetItemById(l.RootItemId)?.Name ?? "(missing)",
+                _libraryManager.GetItemById(l.RootItemId) is { } item ? AdminItemName(item) : "(missing)",
                 l.RootItemId,
                 l.Mode,
                 l.CreatedUtc))
@@ -579,6 +585,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="kind">Optional media type filter.</param>
     /// <param name="musicItems">The music item grouping.</param>
     /// <param name="sort">The result ordering.</param>
+    /// <param name="seriesItems">The series item grouping.</param>
     /// <returns>Matching library items.</returns>
     [HttpGet("Admin/Items")]
     [Authorize(Policy = Policies.RequiresElevation)]
@@ -588,14 +595,15 @@ public sealed class ProgressSyncController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? kind = null,
         [FromQuery] string? musicItems = null,
-        [FromQuery] string? sort = null)
+        [FromQuery] string? sort = null,
+        [FromQuery] string? seriesItems = null)
     {
         if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
         {
             return BadRequest("Enter at least two characters to search.");
         }
 
-        var includeTypes = ResolveAdminSearchKinds(kind, musicItems);
+        var includeTypes = ResolveAdminSearchKinds(kind, musicItems, seriesItems);
         var items = _libraryManager.GetItemsResult(new InternalItemsQuery
         {
             SearchTerm = search.Trim(),
@@ -606,7 +614,7 @@ public sealed class ProgressSyncController : ControllerBase
             OrderBy = [ResolveAdminItemSort(sort)]
         }).Items
             .Where(item => !item.IsVirtualItem)
-            .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
+            .Select(item => new AdminItemDto(item.Id, AdminItemName(item), item.GetType().Name))
             .ToList();
 
         return items;
@@ -619,6 +627,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="musicItems">The music item grouping.</param>
     /// <param name="sort">The result ordering.</param>
     /// <param name="startIndex">The zero-based index of the first item.</param>
+    /// <param name="seriesItems">The series item grouping.</param>
     /// <returns>A page of items and whether more are available.</returns>
     [HttpGet("Admin/Browse")]
     [Authorize(Policy = Policies.RequiresElevation)]
@@ -628,7 +637,8 @@ public sealed class ProgressSyncController : ControllerBase
         [FromQuery] string? kind = null,
         [FromQuery] string? musicItems = null,
         [FromQuery] string? sort = null,
-        [FromQuery] int startIndex = 0)
+        [FromQuery] int startIndex = 0,
+        [FromQuery] string? seriesItems = null)
     {
         if (startIndex < 0)
         {
@@ -641,14 +651,14 @@ public sealed class ProgressSyncController : ControllerBase
             Recursive = true,
             StartIndex = startIndex,
             Limit = pageSize + 1,
-            IncludeItemTypes = ResolveAdminSearchKinds(kind, musicItems).ToArray(),
+            IncludeItemTypes = ResolveAdminSearchKinds(kind, musicItems, seriesItems).ToArray(),
             IsVirtualItem = false,
             EnableTotalRecordCount = false,
             OrderBy = [ResolveAdminItemSort(sort)]
         });
         var supportedItems = result.Items
             .Where(item => !item.IsVirtualItem)
-            .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
+            .Select(item => new AdminItemDto(item.Id, AdminItemName(item), item.GetType().Name))
             .ToList();
         var hasMore = supportedItems.Count > pageSize;
         return new AdminItemBrowseResponse(supportedItems.Take(pageSize).ToList(), hasMore);
@@ -707,25 +717,26 @@ public sealed class ProgressSyncController : ControllerBase
                 null);
         }
 
-        if (LinkRules.ResolveRoot(item) is not { } rootId)
+        var rootId = item is Episode ? item.Id : LinkRules.ResolveRoot(item);
+        if (rootId is not { } linkRootId)
         {
             return BadRequest("This item cannot be linked for continuous sync.");
         }
 
-        var rootItem = GetVisibleItem(rootId, target);
-        if (rootItem is null || GetVisibleItem(rootId, source) is null)
+        var rootItem = GetVisibleItem(linkRootId, target);
+        if (rootItem is null || GetVisibleItem(linkRootId, source) is null)
         {
             return NotFound();
         }
 
-        var link = _store.Upsert(target.Id, source.Id, rootId, mode, BuildStaleCheck());
+        var link = _store.Upsert(target.Id, source.Id, linkRootId, mode, BuildStaleCheck());
         _logger.LogInformation(
             "Progress Sync: administrator configured {Mode} sync from {SourceUser} to {TargetUser} on {ItemName} ({RootId})",
             mode,
             source.Username,
             target.Username,
             rootItem.Name,
-            rootId);
+            linkRootId);
 
         CopyResult? copy = null;
         string? copyError = null;
@@ -743,8 +754,8 @@ public sealed class ProgressSyncController : ControllerBase
             link.Id,
             target.Username,
             source.Username,
-            rootItem.Name,
-            rootId,
+            AdminItemName(rootItem),
+            linkRootId,
             link.Mode,
             link.CreatedUtc);
         return new AdminSyncResponse(copy, adminLink, copyError);
@@ -1022,7 +1033,7 @@ public sealed class ProgressSyncController : ControllerBase
             && (profile.Movies || profile.Series || profile.Music);
     }
 
-    private static List<BaseItemKind> ResolveAdminSearchKinds(string? kind, string? musicItems)
+    private static List<BaseItemKind> ResolveAdminSearchKinds(string? kind, string? musicItems, string? seriesItems)
     {
         if (string.IsNullOrWhiteSpace(kind))
         {
@@ -1032,10 +1043,23 @@ public sealed class ProgressSyncController : ControllerBase
         return kind.Trim() switch
         {
             "movie" or "movies" => [BaseItemKind.Movie],
-            "series" or "show" or "shows" => [BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode],
+            "series" or "show" or "shows" => seriesItems?.Trim().ToLowerInvariant() is "episode" or "episodes"
+                ? [BaseItemKind.Episode]
+                : [BaseItemKind.Series],
             "music" or "audio" or "album" or "albums" => ResolveAdminMusicKinds(musicItems),
             _ => [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist]
         };
+    }
+
+    private static string AdminItemName(BaseItem item)
+    {
+        if (item is Episode episode)
+        {
+            var name = FormatEpisodeName(episode, episode.SeriesName);
+            return string.IsNullOrWhiteSpace(name) ? episode.Name : name;
+        }
+
+        return item.Name;
     }
 
     private static List<BaseItemKind> ResolveAdminMusicKinds(string? musicItems)
@@ -1120,13 +1144,13 @@ public sealed class ProgressSyncController : ControllerBase
         return new UserWatchStatusDto(user.Id, user.Username, true, played, inProgress, progressPercent);
     }
 
-    private LinkDto? ToDto(SyncLink link, Guid me)
+    private LinkDto? ToDto(SyncLink link, Guid me, bool isEpisodeOnly = false)
     {
         var isCreator = link.CreatorUserId.Equals(me);
         var partner = _userManager.GetUserById(isCreator ? link.PartnerUserId : link.CreatorUserId);
         return partner is null
             ? null
-            : new LinkDto(link.Id, partner.Id, partner.Username, link.Mode, isCreator, LinkRules.CanRemove(link, me), link.CreatedUtc);
+            : new LinkDto(link.Id, partner.Id, partner.Username, link.Mode, isCreator, LinkRules.CanRemove(link, me), link.CreatedUtc, isEpisodeOnly);
     }
 
     private Func<SyncLink, bool> BuildStaleCheck()

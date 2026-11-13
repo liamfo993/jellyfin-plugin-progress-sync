@@ -12,6 +12,7 @@ namespace Jellyfin.Plugin.ProgressSync.Models;
 /// <param name="IsCreator">Whether the caller created the link.</param>
 /// <param name="CanRemove">Whether the caller may remove the link.</param>
 /// <param name="CreatedUtc">When the link was created.</param>
+/// <param name="IsEpisodeOnly">Whether the link applies only to the current episode.</param>
 public sealed record LinkDto(
     Guid Id,
     Guid PartnerUserId,
@@ -19,4 +20,5 @@ public sealed record LinkDto(
     LinkMode Mode,
     bool IsCreator,
     bool CanRemove,
-    DateTime CreatedUtc);
+    DateTime CreatedUtc,
+    bool IsEpisodeOnly = false);

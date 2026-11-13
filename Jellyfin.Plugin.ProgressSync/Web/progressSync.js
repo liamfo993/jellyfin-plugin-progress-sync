@@ -306,6 +306,9 @@
                 row.querySelector('.psLinkText').textContent = link.Mode === 'Mirror'
                     ? 'Two-way with ' + link.PartnerName
                     : 'Following ' + link.PartnerName;
+                if (link.IsEpisodeOnly) {
+                    row.querySelector('.psLinkText').textContent += ' (this episode only)';
+                }
                 const remove = row.querySelector('.psRemove');
                 if (link.CanRemove) {
                     remove.addEventListener('click', function () {

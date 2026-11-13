@@ -32,8 +32,9 @@ the target. `Likes` is never assigned, because its setter overwrites `Rating`.
 
 ## Links
 
-A link is `{ Id, CreatorUserId, PartnerUserId, RootItemId, Mode, CreatedUtc }`. The root is the
-series for episodes, seasons and series, and the primary version for movies.
+A link is `{ Id, CreatorUserId, PartnerUserId, RootItemId, Mode, CreatedUtc }`. Title-page links use
+the series for episodes, seasons and series, and the primary version for movies. The admin Progress
+sync tab can also create a link rooted at an individual episode.
 
 | Mode    | Flow                | Visible to / removable by |
 |---------|---------------------|---------------------------|
@@ -43,8 +44,8 @@ series for episodes, seasons and series, and the primary version for movies.
 Creating a link first copies the partner's progress for the whole root to the creator.
 
 `LinkSyncService` subscribes to `IUserDataManager.UserDataSaved`. For an episode, movie, or audio save it
-looks up links on the item's root and copies the saved data to every user reachable from the saving
-user. The server raises the event synchronously on the saving thread, so the plugin's own writes
+looks up links on the item's root and, for episodes, on the episode itself, and copies the saved
+data to every user reachable from the saving user. The server raises the event synchronously on the saving thread, so the plugin's own writes
 re-enter the handler on the same thread. A `[ThreadStatic]` set of users already written stops
 loops and lets changes pass along chains of links, writing each user at most once. Saves with
 reason `UpdateUserRating` or `Import` (NFO imports on temporary items) are ignored, and the original

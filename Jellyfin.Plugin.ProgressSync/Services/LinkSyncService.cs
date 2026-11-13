@@ -82,14 +82,19 @@ public sealed class LinkSyncService : IHostedService
                 return;
             }
 
-            if (e.Item is not (Episode or Movie or Audio) || LinkRules.ResolveRoot(e.Item) is not { } rootId)
+            if (e.Item is not (Episode or Movie or Audio))
             {
                 return;
             }
 
-            var links = _store.Snapshot.ForRoot(rootId);
+            var rootId = LinkRules.ResolveRoot(e.Item);
+            var snapshot = _store.Snapshot;
+            var links = rootId is { } id ? snapshot.ForRoot(id) : [];
+            var episodeLinks = e.Item is Episode && e.Item.Id != rootId
+                ? snapshot.ForRoot(e.Item.Id)
+                : [];
             var globalTargets = _globalSettings.Current.TargetsOf(e.UserId, e.Item);
-            if (links.Count == 0 && globalTargets.Length == 0)
+            if (links.Count == 0 && episodeLinks.Count == 0 && globalTargets.Length == 0)
             {
                 return;
             }
@@ -101,6 +106,7 @@ public sealed class LinkSyncService : IHostedService
             var context = active ?? owned!;
 
             var targets = LinkRules.TargetsOf(links, e.UserId)
+                .Concat(LinkRules.TargetsOf(episodeLinks, e.UserId))
                 .Concat(globalTargets)
                 .Where(t => !context.Reached.Contains(t))
                 .Distinct()

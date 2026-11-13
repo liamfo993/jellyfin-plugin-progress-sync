@@ -8,8 +8,8 @@ namespace Jellyfin.Plugin.ProgressSync.Models;
 /// <param name="Id">The link id.</param>
 /// <param name="CreatorName">The creator's name.</param>
 /// <param name="PartnerName">The partner's name.</param>
-/// <param name="ItemName">The linked series or movie name.</param>
-/// <param name="RootItemId">The linked series or movie id.</param>
+/// <param name="ItemName">The linked media item's name.</param>
+/// <param name="RootItemId">The linked media item's id.</param>
 /// <param name="Mode">How progress flows.</param>
 /// <param name="CreatedUtc">When the link was created.</param>
 public sealed record AdminLinkDto(

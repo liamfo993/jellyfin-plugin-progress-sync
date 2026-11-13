@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Api;
 using Jellyfin.Plugin.ProgressSync.Models;
@@ -548,6 +549,21 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
+    public void GetLinks_EpisodeIncludesVisibleEpisodeAndSeriesLinks()
+    {
+        var episodeLink = _store.Upsert(_bob.Id, _alice.Id, _episode.Id, LinkMode.Mirror, _ => false);
+        var seriesLink = _store.Upsert(_bob.Id, _alice.Id, _series.Id, LinkMode.Follow, _ => false);
+
+        var bobLinks = As(_bob).GetLinks(_episode.Id).Value!;
+        Assert.True(Assert.Single(bobLinks, link => link.Id == episodeLink.Id).IsEpisodeOnly);
+        Assert.False(Assert.Single(bobLinks, link => link.Id == seriesLink.Id).IsEpisodeOnly);
+        Assert.Equal(episodeLink.Id, Assert.Single(As(_alice).GetLinks(_episode.Id).Value!).Id);
+        Assert.Equal(seriesLink.Id, Assert.Single(As(_bob).GetLinks(_series.Id).Value!).Id);
+        Assert.Equal(204, Status(As(_alice).DeleteLink(episodeLink.Id)));
+        Assert.NotNull(_store.Snapshot.Find(seriesLink.Id));
+    }
+
+    [Fact]
     public void AdminSync_OneTimeCopyCopiesSourceProgressWithoutCreatingALink()
     {
         _server.Data[(_alice.Id, _audio.Id)] = FakeServer.Progress(1200, played: true, playCount: 2);
@@ -639,6 +655,50 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Contains(items, item => item.Id == _movie.Id && item.Type == "Movie");
         Assert.Contains(items, item => item.Id == _series.Id && item.Type == "Series");
         Assert.Contains(items, item => item.Id == _audio.Id && item.Type == "Audio");
+    }
+
+    [Theory]
+    [InlineData(null, BaseItemKind.Series)]
+    [InlineData("series", BaseItemKind.Series)]
+    [InlineData("episodes", BaseItemKind.Episode)]
+    public void AdminItemSearchAndBrowse_UseSelectedSeriesGrouping(string? grouping, BaseItemKind expectedKind)
+    {
+        var controller = As(_alice);
+
+        controller.SearchAdminItems("Show", kind: "series", seriesItems: grouping);
+        controller.BrowseAdminItems(kind: "series", seriesItems: grouping);
+
+        _server.Library.Verify(
+            library => library.GetItemsResult(It.Is<InternalItemsQuery>(query =>
+                query.IncludeItemTypes.SequenceEqual(new[] { expectedKind }))),
+            Times.Exactly(2));
+    }
+
+    [Theory]
+    [InlineData(LinkMode.Follow)]
+    [InlineData(LinkMode.Mirror)]
+    public void AdminSync_EpisodeContinuousLinkIsScopedToEpisode(LinkMode mode)
+    {
+        var result = As(_alice).AdminSync(new AdminSyncRequest(_episode.Id, _alice.Id, _bob.Id, mode)).Value!;
+
+        Assert.NotNull(result.Link);
+        Assert.Equal(_episode.Id, result.Link.RootItemId);
+        Assert.Equal(_episode.Id, Assert.Single(_store.Snapshot.All).RootItemId);
+    }
+
+    [Fact]
+    public void AdminItemSearchAndBrowse_IncludeEpisodeNumberInName()
+    {
+        _episode.Name = "Pilot";
+        _episode.ParentIndexNumber = 1;
+        _episode.IndexNumber = 2;
+        _server.Library
+            .Setup(library => library.GetItemsResult(It.IsAny<InternalItemsQuery>()))
+            .Returns(new QueryResult<BaseItem>([_episode]));
+        var controller = As(_alice);
+
+        Assert.Contains("S01E02 - Pilot", Assert.Single(controller.SearchAdminItems("Pilot", kind: "series", seriesItems: "episodes").Value!).Name, StringComparison.Ordinal);
+        Assert.Contains("S01E02 - Pilot", Assert.Single(controller.BrowseAdminItems(kind: "series", seriesItems: "episodes").Value!.Items).Name, StringComparison.Ordinal);
     }
 
     [Fact]

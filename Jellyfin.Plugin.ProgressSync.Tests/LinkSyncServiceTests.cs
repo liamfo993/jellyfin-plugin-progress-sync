@@ -94,6 +94,37 @@ public sealed class LinkSyncServiceTests : IDisposable
         Assert.Equal(300, Ticks(_alice));
     }
 
+    [Theory]
+    [InlineData(LinkMode.Follow)]
+    [InlineData(LinkMode.Mirror)]
+    public void EpisodeLink_OnlySyncsSelectedEpisode(LinkMode mode)
+    {
+        var otherEpisode = _server.AddItem(new Episode { Id = Guid.NewGuid(), SeriesId = _seriesId });
+        _store.Upsert(_bob.Id, _alice.Id, _episode.Id, mode, _ => false);
+
+        Watch(_alice, 100, item: otherEpisode);
+        Assert.Equal(0, _server.Get(_bob.Id, otherEpisode.Id).PlaybackPositionTicks);
+        Watch(_alice, 200);
+        Assert.Equal(200, Ticks(_bob));
+        Watch(_bob, 300);
+        Assert.Equal(mode == LinkMode.Mirror ? 300 : 200, Ticks(_alice));
+    }
+
+    [Fact]
+    public void EpisodeAndSeriesLinks_PropagateTogether()
+    {
+        _store.Upsert(_bob.Id, _alice.Id, _episode.Id, LinkMode.Mirror, _ => false);
+        Link(_carol, _bob, LinkMode.Mirror);
+
+        Watch(_alice, 100);
+
+        Assert.Equal(100, Ticks(_bob));
+        Assert.Equal(100, Ticks(_carol));
+        Assert.Equal(1, SavesFor(_alice));
+        Assert.Equal(1, SavesFor(_bob));
+        Assert.Equal(1, SavesFor(_carol));
+    }
+
     [Fact]
     public void Chain_IsTransitive_EachUserWrittenOnce_NoWriteBack()
     {

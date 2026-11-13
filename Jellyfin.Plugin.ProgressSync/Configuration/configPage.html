@@ -14,6 +14,10 @@
             --ps-border: rgba(255, 255, 255, .1);
         }
 
+        #progressSyncConfigPage [hidden] {
+            display: none !important;
+        }
+
         #progressSyncConfigPage .ps-hero,
         #progressSyncConfigPage .ps-panel,
         #progressSyncConfigPage .ps-info-card {
@@ -435,7 +439,7 @@
                                 <div class="inputContainer">
                                     <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Search for a title</label>
                                     <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
-                                    <div class="fieldDescription">Movies, series, albums, and songs. Enter at least two characters or browse the posters.</div>
+                                    <div class="fieldDescription">Movies, series, episodes, albums, and songs. Enter at least two characters or browse the posters.</div>
                                 </div>
                                 <button id="psSearchItems" type="button" class="emby-button raised">
                                     <span>Search</span>
@@ -445,6 +449,13 @@
                                 </button>
                             </div>
                             <div class="ps-browse-options">
+                                <label class="selectContainer" id="psSeriesItemsField" hidden>
+                                    <span class="selectLabel">Series items</span>
+                                    <select id="psSeriesItems" is="emby-select" class="emby-select">
+                                        <option value="series">Entire series</option>
+                                        <option value="episodes">Episodes</option>
+                                    </select>
+                                </label>
                                 <label class="selectContainer" id="psMusicItemsField" hidden>
                                     <span class="selectLabel">Music items</span>
                                     <select id="psMusicItems" is="emby-select" class="emby-select">
@@ -840,6 +851,9 @@
                     if (activeItemKind === 'music') {
                         url.searchParams.set('musicItems', page.querySelector('#psMusicItems').value);
                     }
+                    if (activeItemKind === 'series') {
+                        url.searchParams.set('seriesItems', page.querySelector('#psSeriesItems').value);
+                    }
                     url.searchParams.set('sort', page.querySelector('#psItemSort').value);
                 }
 
@@ -967,8 +981,9 @@
                     }
                 }
 
-                function updateMusicItemsControl() {
+                function updateItemGroupControls() {
                     page.querySelector('#psMusicItemsField').hidden = activeItemKind !== 'music';
+                    page.querySelector('#psSeriesItemsField').hidden = activeItemKind !== 'series';
                 }
 
                 async function deactivateLink(link, button) {
@@ -1079,7 +1094,7 @@
                             tab.classList.toggle('is-active', isActive);
                             tab.setAttribute('aria-selected', String(isActive));
                         });
-                        updateMusicItemsControl();
+                        updateItemGroupControls();
                         refreshAdminItems();
                     });
                 });
@@ -1094,6 +1109,7 @@
                 });
                 page.querySelector('#psItemSort').addEventListener('change', refreshAdminItems);
                 page.querySelector('#psMusicItems').addEventListener('change', refreshAdminItems);
+                page.querySelector('#psSeriesItems').addEventListener('change', refreshAdminItems);
                 page.querySelector('#psItemResults').addEventListener('change', function (event) {
                     var radio = event.target.closest('input[type="radio"][name="psAdminItemChoice"]');
                     if (!radio) {
