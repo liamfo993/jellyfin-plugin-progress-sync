@@ -1,0 +1,173 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/MediaVisibility.js">
+    <style>
+        #progressSyncMediaVisibility {
+            --ps-accent: #00a4dc;
+            --ps-card: rgba(255, 255, 255, .055);
+            --ps-border: rgba(255, 255, 255, .1);
+        }
+
+        #progressSyncMediaVisibility [hidden] {
+            display: none !important;
+        }
+
+        #progressSyncMediaVisibility .ps-hero,
+        #progressSyncMediaVisibility .ps-panel,
+        #progressSyncMediaVisibility .ps-info-card,
+        #progressSyncMediaVisibility .ps-rule {
+            border: 1px solid var(--ps-border);
+            border-radius: 12px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncMediaVisibility .ps-hero {
+            padding: 1.5em;
+            margin-bottom: 1.25em;
+            border-color: rgba(0, 164, 220, .24);
+            background: linear-gradient(120deg, rgba(0, 164, 220, .18), var(--ps-card) 60%);
+        }
+
+        #progressSyncMediaVisibility .ps-hero h1 {
+            margin: 0 0 .4em;
+            font-size: 1.8em;
+        }
+
+        #progressSyncMediaVisibility .ps-info-card {
+            padding: 1em 1.1em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncMediaVisibility .ps-panel {
+            padding: 1.25em;
+            margin-bottom: 1.25em;
+        }
+
+        #progressSyncMediaVisibility .ps-panel h2 {
+            margin: 0 0 .35em;
+        }
+
+        #progressSyncMediaVisibility .ps-search-row,
+        #progressSyncMediaVisibility .ps-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            align-items: end;
+            gap: .85em;
+            margin: 1em 0;
+        }
+
+        #progressSyncMediaVisibility .ps-field {
+            display: grid;
+            gap: .4em;
+        }
+
+        #progressSyncMediaVisibility .ps-field input,
+        #progressSyncMediaVisibility .ps-field select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #progressSyncMediaVisibility .ps-rule-list {
+            display: grid;
+            gap: .7em;
+            margin-top: 1em;
+        }
+
+        #progressSyncMediaVisibility .ps-rule {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: .8em;
+            padding: .9em 1em;
+        }
+
+        #progressSyncMediaVisibility .ps-rule-details {
+            display: grid;
+            gap: .25em;
+            min-width: 0;
+        }
+
+        #progressSyncMediaVisibility .ps-rule-name {
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        #progressSyncMediaVisibility .ps-status {
+            min-height: 1.5em;
+            margin: .8em 0;
+        }
+
+        #progressSyncMediaVisibility .ps-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .7em;
+            align-items: center;
+        }
+    </style>
+    <div id="progressSyncMediaVisibility" data-role="content">
+        <div class="content-primary">
+            <header class="ps-hero">
+                <h1>Media visibility</h1>
+                <p class="fieldDescription">Hide selected movies, shows, episodes, albums, or tracks from a user or everyone. Rules use Jellyfin’s blocked-tag access checks, so they apply on the server rather than only in this dashboard.</p>
+            </header>
+
+            <div class="ps-info-card">
+                <strong>Scheduled visibility</strong>
+                <span class="fieldDescription">Optionally choose the annual date range when an item is visible. Outside that range it is hidden. Dates use the Jellyfin server’s local time. For example, set December 1 through December 31 to show seasonal media only in December.</span>
+            </div>
+
+            <section class="ps-panel">
+                <h2 class="sectionTitle">Add a hide rule</h2>
+                <div class="fieldDescription">Search for a title, then choose who can see it. Selecting a show, season, or album also applies the rule to its child media.</div>
+                <div class="ps-search-row">
+                    <label class="ps-field">
+                        <span class="fieldDescription">Search media</span>
+                        <input id="psVisibilitySearch" class="emby-input" type="search" maxlength="100" placeholder="Enter at least two characters">
+                    </label>
+                    <button id="psVisibilitySearchButton" type="button" class="emby-button raised"><span>Search</span></button>
+                </div>
+                <div id="psVisibilitySearchStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                <form id="psVisibilityForm">
+                    <div class="ps-form-grid">
+                        <label class="ps-field">
+                            <span class="fieldDescription">Media item</span>
+                            <select id="psVisibilityItem" is="emby-select" class="emby-select" required>
+                                <option value="">Search and choose an item</option>
+                            </select>
+                        </label>
+                        <label class="ps-field">
+                            <span class="fieldDescription">Hide from</span>
+                            <select id="psVisibilityUser" is="emby-select" class="emby-select" required></select>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input id="psVisibilityScheduled" type="checkbox" is="emby-checkbox">
+                            <span>Only make it visible during an annual date range</span>
+                        </label>
+                    </div>
+                    <div id="psVisibilityDates" class="ps-form-grid" hidden>
+                        <label class="ps-field">
+                            <span class="fieldDescription">Visible from (month/day)</span>
+                            <input id="psVisibilityFrom" class="emby-input" type="date">
+                        </label>
+                        <label class="ps-field">
+                            <span class="fieldDescription">Visible through (month/day)</span>
+                            <input id="psVisibilityThrough" class="emby-input" type="date">
+                        </label>
+                    </div>
+                    <div class="ps-actions">
+                        <button id="psAddVisibilityRule" type="submit" class="emby-button button-submit"><span>Add hide rule</span></button>
+                    </div>
+                    <div id="psVisibilitySaveStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                </form>
+            </section>
+
+            <section class="ps-panel">
+                <h2 class="sectionTitle">Current rules</h2>
+                <div id="psVisibilityRulesStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></div>
+                <div id="psVisibilityRules" class="ps-rule-list"></div>
+            </section>
+        </div>
+    </div>
+</div>

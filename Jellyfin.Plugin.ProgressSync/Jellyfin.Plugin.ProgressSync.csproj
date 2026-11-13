@@ -42,6 +42,10 @@
     <EmbeddedResource Include="Pages\Notifications.html" />
     <None Remove="Pages\Notifications.js" />
     <EmbeddedResource Include="Pages\Notifications.js" />
+    <None Remove="Pages\MediaVisibility.html" />
+    <EmbeddedResource Include="Pages\MediaVisibility.html" />
+    <None Remove="Pages\MediaVisibility.js" />
+    <EmbeddedResource Include="Pages\MediaVisibility.js" />
     <None Remove="Pages\ProgressSync.js" />
     <EmbeddedResource Include="Pages\ProgressSync.js" />
   </ItemGroup>

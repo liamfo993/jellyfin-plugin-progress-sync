@@ -93,9 +93,18 @@ stored in the plugin configuration directory. The Notifications tab never reads 
 to the browser; it reports only whether both are configured. Users can save event preferences,
 replace or clear credentials, and send a test message.
 
-Watch history, playback limits, notifications, and progress sync are separate tabs in the plugin
-page navigation. The Progress sync tab groups one-time copies, continuous links, and global profiles
-into separate guided sections.
+`MediaVisibilityService` applies per-user and global rules by adding rule-specific item tags and
+adding those tags to the targeted users' Jellyfin blocked-tag policies. It tags the selected item
+and its descendants (for example, tracks under an album). Optional annual visible windows are
+evaluated using the server's local date; rules are reconciled on startup, after admin changes, and
+once per minute. This uses Jellyfin's server-side parental visibility checks rather than hiding
+items only in jellyfin-web, so clients that use Jellyfin's normal item-access APIs receive the same
+restrictions. Rule data is stored in `media-visibility.json`; only the plugin's own generated tags
+are managed, and unrelated item tags and user policy settings are preserved.
+
+Watch history, playback limits, notifications, media visibility, and progress sync are separate
+tabs in the plugin page navigation. The Progress sync tab groups one-time copies, continuous links,
+and global profiles into separate guided sections.
 
 ## REST API
 
@@ -124,6 +133,10 @@ Progress sync tab and verify that both users can access the selected item before
 | `POST /Admin/GlobalSettings` | admin | Replace all global sync profiles |
 | `GET /Admin/StreamLimits` | admin | Enabled users and current per-user stream limits |
 | `POST /Admin/StreamLimits` | admin | Replace per-user stream limits and stop-newest/oldest policy (0 means unlimited; maximum is 100) |
+| `GET /Admin/Visibility` | admin | Enabled users and configured media visibility rules |
+| `GET /Admin/Visibility/Items?search=...` | admin | Search movies, shows, seasons, episodes, albums, and tracks |
+| `POST /Admin/Visibility` | admin | Add an always-hidden or annually scheduled rule for one user or all users |
+| `DELETE /Admin/Visibility/{ruleId}` | admin | Remove a visibility rule |
 | `GET /Admin/Pushover` | admin | Pushover event preferences and configured-credential status |
 | `POST /Admin/Pushover` | admin | Save Pushover event preferences and optionally replace or clear credentials |
 | `POST /Admin/Pushover/Test` | admin | Send a test Pushover message |

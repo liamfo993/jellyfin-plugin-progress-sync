@@ -17,12 +17,15 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<LinkStore>();
         serviceCollection.AddSingleton<GlobalSyncSettingsStore>();
         serviceCollection.AddSingleton<ConcurrentStreamLimitStore>();
+        serviceCollection.AddSingleton<MediaVisibilityStore>();
+        serviceCollection.AddSingleton<MediaVisibilityService>();
         serviceCollection.AddSingleton<PushoverNotificationStore>();
         serviceCollection.AddSingleton<ProgressCopier>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddHttpClient("ProgressSyncPushover", client => client.Timeout = TimeSpan.FromSeconds(10));
         serviceCollection.AddHostedService<LinkSyncService>();
         serviceCollection.AddHostedService<ConcurrentStreamLimitService>();
+        serviceCollection.AddHostedService(provider => provider.GetRequiredService<MediaVisibilityService>());
         serviceCollection.AddSingleton<PushoverNotificationService>();
         serviceCollection.AddHostedService(provider => provider.GetRequiredService<PushoverNotificationService>());
         serviceCollection.AddHostedService<WebInjectionService>();

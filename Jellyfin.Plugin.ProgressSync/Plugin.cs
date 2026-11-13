@@ -77,6 +77,16 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "MediaVisibility",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.MediaVisibility.html"
+            },
+            new PluginPageInfo
+            {
+                Name = "MediaVisibility.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.MediaVisibility.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "ProgressSync.js",
                 EmbeddedResourcePath = GetType().Namespace + ".Pages.ProgressSync.js"
             },
