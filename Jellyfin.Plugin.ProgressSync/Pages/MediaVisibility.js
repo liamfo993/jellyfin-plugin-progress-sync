@@ -124,6 +124,20 @@ export default function (view) {
             const card = document.createElement('div');
             card.className = 'ps-rule';
 
+            const poster = document.createElement('div');
+            poster.className = 'ps-rule-poster';
+            const image = document.createElement('img');
+            image.alt = '';
+            image.loading = 'lazy';
+            image.src = ApiClient.getScaledImageUrl(rule.ItemId, { type: 'Primary', maxWidth: 120, quality: 85 });
+            image.addEventListener('error', function () {
+                const placeholder = document.createElement('span');
+                placeholder.className = 'ps-item-placeholder';
+                placeholder.textContent = rule.ItemType;
+                poster.replaceChildren(placeholder);
+            }, { once: true });
+            poster.appendChild(image);
+
             const details = document.createElement('div');
             details.className = 'ps-rule-details';
             const name = document.createElement('span');
@@ -148,7 +162,7 @@ export default function (view) {
             const removeLabel = document.createElement('span');
             removeLabel.textContent = 'Remove';
             remove.appendChild(removeLabel);
-            card.append(details, remove);
+            card.append(poster, details, remove);
             fragment.appendChild(card);
         });
 

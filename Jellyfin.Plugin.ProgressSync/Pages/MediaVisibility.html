@@ -158,13 +158,35 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            justify-content: space-between;
             gap: .8em;
             padding: .9em 1em;
         }
 
+        #progressSyncMediaVisibility .ps-rule-poster {
+            display: grid;
+            flex: 0 0 56px;
+            overflow: hidden;
+            width: 56px;
+            aspect-ratio: 2 / 3;
+            place-items: center;
+            border-radius: 5px;
+            background: linear-gradient(145deg, rgba(0, 164, 220, .2), rgba(255, 255, 255, .04));
+        }
+
+        #progressSyncMediaVisibility .ps-rule-poster img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #progressSyncMediaVisibility .ps-rule-poster .ps-item-placeholder {
+            padding: .3em;
+            font-size: .65em;
+        }
+
         #progressSyncMediaVisibility .ps-rule-details {
             display: grid;
+            flex: 1 1 220px;
             gap: .25em;
             min-width: 0;
         }
