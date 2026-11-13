@@ -74,31 +74,25 @@ public sealed class MediaVisibilityController : ControllerBase
 
     /// <summary>Searches media items that can be hidden.</summary>
     /// <param name="search">The item name to search for.</param>
+    /// <param name="kind">Optional media type filter.</param>
     /// <returns>Matching library items.</returns>
     [HttpGet("Items")]
     [ProducesResponseType(typeof(IReadOnlyList<AdminItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult<IReadOnlyList<AdminItemDto>> SearchItems([FromQuery] string? search)
+    public ActionResult<IReadOnlyList<AdminItemDto>> SearchItems([FromQuery] string? search, [FromQuery] string? kind = null)
     {
         if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
         {
             return BadRequest("Enter at least two characters to search.");
         }
 
+        var includeTypes = ResolveSearchKinds(kind);
         var items = _libraryManager.GetItemsResult(new InternalItemsQuery
         {
             SearchTerm = search.Trim(),
             Recursive = true,
             Limit = 50,
-            IncludeItemTypes =
-            [
-                BaseItemKind.Movie,
-                BaseItemKind.Series,
-                BaseItemKind.Season,
-                BaseItemKind.Episode,
-                BaseItemKind.Audio,
-                BaseItemKind.MusicAlbum
-            ]
+            IncludeItemTypes = includeTypes.ToArray()
         }).Items
             .Where(IsSupported)
             .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
@@ -197,9 +191,34 @@ public sealed class MediaVisibilityController : ControllerBase
             rule.CreatedUtc);
     }
 
+    private static List<BaseItemKind> ResolveSearchKinds(string? kind)
+    {
+        if (string.IsNullOrWhiteSpace(kind))
+        {
+            return
+            [
+                BaseItemKind.Movie,
+                BaseItemKind.Series,
+                BaseItemKind.Season,
+                BaseItemKind.Episode,
+                BaseItemKind.Audio,
+                BaseItemKind.MusicAlbum,
+                BaseItemKind.MusicArtist
+            ];
+        }
+
+        return kind.Trim() switch
+        {
+            "movie" or "movies" => [BaseItemKind.Movie],
+            "series" or "show" or "shows" => [BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode],
+            "music" or "audio" or "album" or "albums" => [BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist],
+            _ => [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist]
+        };
+    }
+
     private static bool IsSupported(BaseItem item)
     {
-        return item is Movie or Series or Season or Episode or Audio or MusicAlbum;
+        return item is Movie or Series or Season or Episode or Audio or MusicAlbum or MusicArtist;
     }
 
     private static bool IsValidWindow(MediaVisibilityRuleRequest request)

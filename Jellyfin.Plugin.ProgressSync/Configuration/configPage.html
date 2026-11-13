@@ -112,6 +112,27 @@
             gap: .75em;
         }
 
+        #progressSyncConfigPage .ps-search-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5em;
+            margin: .5em 0 1em;
+        }
+
+        #progressSyncConfigPage .ps-search-tab {
+            min-width: 90px;
+            border: 1px solid var(--ps-border);
+            border-radius: 999px;
+            padding: .45em .9em;
+            background: rgba(255, 255, 255, .03);
+            color: inherit;
+        }
+
+        #progressSyncConfigPage .ps-search-tab.is-active {
+            border-color: rgba(0, 164, 220, .6);
+            background: rgba(0, 164, 220, .12);
+        }
+
         #progressSyncConfigPage .ps-search-row .inputContainer {
             margin-bottom: 0;
         }
@@ -338,6 +359,12 @@
                     </div>
                     <div class="ps-panel-content">
                         <form id="psSetupForm">
+                            <div class="ps-search-tabs" role="tablist" aria-label="Title search type">
+                                <button type="button" class="ps-search-tab is-active" data-kind="all" role="tab" aria-selected="true">All</button>
+                                <button type="button" class="ps-search-tab" data-kind="movie" role="tab" aria-selected="false">Movies</button>
+                                <button type="button" class="ps-search-tab" data-kind="series" role="tab" aria-selected="false">Series</button>
+                                <button type="button" class="ps-search-tab" data-kind="music" role="tab" aria-selected="false">Music</button>
+                            </div>
                             <div class="ps-search-row">
                                 <div class="inputContainer">
                                     <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Search for a title</label>
@@ -453,6 +480,7 @@
                 var mediaOptions = ['psMovies', 'psSeries', 'psMusic'];
                 var globalUsers = [];
                 var globalSettings = null;
+                var activeItemKind = 'all';
 
                 function loadGlobalSettings(data) {
                     globalUsers = data.Users;
@@ -689,6 +717,7 @@
                         return;
                     }
 
+                    var kind = activeItemKind === 'all' ? '' : activeItemKind;
                     button.disabled = true;
                     select.innerHTML = '';
                     var searching = document.createElement('option');
@@ -696,9 +725,12 @@
                     searching.textContent = 'Searching...';
                     select.appendChild(searching);
                     status.textContent = 'Searching the library...';
-                    ApiClient.getJSON(ApiClient.getUrl(
-                        'ProgressSync/Admin/Items?search=' + encodeURIComponent(search)
-                    )).then(function (items) {
+                    var url = new URL(ApiClient.getUrl('ProgressSync/Admin/Items'));
+                    url.searchParams.set('search', search);
+                    if (kind) {
+                        url.searchParams.set('kind', kind);
+                    }
+                    ApiClient.getJSON(url.toString()).then(function (items) {
                         select.innerHTML = '';
                         var placeholder = document.createElement('option');
                         placeholder.value = '';
@@ -712,7 +744,7 @@
                         });
                         status.textContent = items.length
                             ? 'Found ' + items.length + ' matching item(s). Choose one below.'
-                            : 'No matching items. Try another title.';
+                            : 'No matching ' + (kind ? kind : 'items') + '. Try another title.';
                     }, function (err) {
                         status.textContent = 'Could not search the library (' + errorText(err) + ').';
                     }).finally(function () {
@@ -820,6 +852,20 @@
                 page.querySelector('#psSyncMode').addEventListener('change', updateModeSummary);
                 updateModeSummary();
                 mediaOptions.concat(['psEverything']).forEach(updateScopeOption);
+                page.querySelectorAll('.ps-search-tab').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        activeItemKind = button.dataset.kind || 'all';
+                        page.querySelectorAll('.ps-search-tab').forEach(function (tab) {
+                            var isActive = tab === button;
+                            tab.classList.toggle('is-active', isActive);
+                            tab.setAttribute('aria-selected', String(isActive));
+                        });
+                        if (page.querySelector('#psItemSearch').value.trim().length >= 2) {
+                            searchItems();
+                        }
+                    });
+                });
+
                 page.querySelector('#psSearchItems').addEventListener('click', searchItems);
                 page.querySelector('#psItemSearch').addEventListener('keydown', function (event) {
                     if (event.key === 'Enter') {

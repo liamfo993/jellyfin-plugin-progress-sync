@@ -573,27 +573,29 @@ public sealed class ProgressSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Searches movies, series, and audio for admin sync setup.
+    /// Searches movies, series, and music for admin sync setup.
     /// </summary>
     /// <param name="search">The item name to search for.</param>
+    /// <param name="kind">Optional media type filter.</param>
     /// <returns>Matching library items.</returns>
     [HttpGet("Admin/Items")]
     [Authorize(Policy = Policies.RequiresElevation)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult<IReadOnlyList<AdminItemDto>> SearchAdminItems([FromQuery] string? search)
+    public ActionResult<IReadOnlyList<AdminItemDto>> SearchAdminItems([FromQuery] string? search, [FromQuery] string? kind = null)
     {
         if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
         {
             return BadRequest("Enter at least two characters to search.");
         }
 
+        var includeTypes = ResolveAdminSearchKinds(kind);
         var items = _libraryManager.GetItemsResult(new InternalItemsQuery
         {
             SearchTerm = search.Trim(),
             Recursive = true,
             Limit = 50,
-            IncludeItemTypes = [BaseItemKind.Audio, BaseItemKind.Movie, BaseItemKind.Series]
+            IncludeItemTypes = includeTypes.ToArray()
         }).Items
             .Where(item => !item.IsVirtualItem)
             .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
@@ -965,7 +967,23 @@ public sealed class ProgressSyncController : ControllerBase
             && (profile.Movies || profile.Series || profile.Music);
     }
 
-    private static bool IsSupported(BaseItem item) => item is Audio or Movie or Episode or Season or Series;
+    private static List<BaseItemKind> ResolveAdminSearchKinds(string? kind)
+    {
+        if (string.IsNullOrWhiteSpace(kind))
+        {
+            return [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist];
+        }
+
+        return kind.Trim() switch
+        {
+            "movie" or "movies" => [BaseItemKind.Movie],
+            "series" or "show" or "shows" => [BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode],
+            "music" or "audio" or "album" or "albums" => [BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist],
+            _ => [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist]
+        };
+    }
+
+    private static bool IsSupported(BaseItem item) => item is Audio or Movie or Episode or Season or Series or MusicAlbum or MusicArtist;
 
     private User? GetCurrentUser()
     {

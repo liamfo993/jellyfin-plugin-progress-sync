@@ -29,12 +29,28 @@ export default function (view) {
     const searchStatus = page.querySelector('#psVisibilitySearchStatus');
     const saveStatus = page.querySelector('#psVisibilitySaveStatus');
     const addButton = page.querySelector('#psAddVisibilityRule');
+    const mediaTabs = page.querySelectorAll('.ps-type-tab');
+    let activeMediaKind = 'all';
 
     LibraryMenu.setTabs('WatchHistory', 4, getTabs);
 
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 4, getTabs);
         loadSettings();
+    });
+
+    mediaTabs.forEach(function (button) {
+        button.addEventListener('click', function () {
+            activeMediaKind = button.dataset.kind || 'all';
+            mediaTabs.forEach(function (tab) {
+                const isActive = tab === button;
+                tab.classList.toggle('is-active', isActive);
+                tab.setAttribute('aria-selected', String(isActive));
+            });
+            if (page.querySelector('#psVisibilitySearch').value.trim().length >= 2) {
+                searchItems();
+            }
+        });
     });
 
     page.querySelector('#psVisibilitySearchButton').addEventListener('click', searchItems);
@@ -132,12 +148,17 @@ export default function (view) {
             return;
         }
 
+        const kind = activeMediaKind === 'all' ? '' : activeMediaKind;
         searchStatus.textContent = 'Searching media…';
         itemSelect.replaceChildren();
         try {
-            const results = await ApiClient.getJSON(ApiClient.getUrl(
-                'ProgressSync/Admin/Visibility/Items?search=' + encodeURIComponent(query)
-            ));
+            const url = new URL(ApiClient.getUrl('ProgressSync/Admin/Visibility/Items'));
+            url.searchParams.set('search', query);
+            if (kind) {
+                url.searchParams.set('kind', kind);
+            }
+
+            const results = await ApiClient.getJSON(url.toString());
             const fragment = document.createDocumentFragment();
             const prompt = document.createElement('option');
             prompt.value = '';
@@ -153,7 +174,7 @@ export default function (view) {
             window.CustomElements.upgradeSubtree(itemSelect);
             searchStatus.textContent = results.length
                 ? 'Found ' + results.length + ' item' + (results.length === 1 ? '' : 's') + '.'
-                : 'No matching media found.';
+                : 'No matching ' + (kind ? kind : 'media') + ' found.';
         } catch (error) {
             searchStatus.textContent = 'Could not search media (' + errorText(error) + ').';
             console.warn('[ProgressSync]', 'could not search media for visibility rules', error);

@@ -55,6 +55,27 @@
             margin: 1em 0;
         }
 
+        #progressSyncMediaVisibility .ps-type-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5em;
+            margin: .75em 0 1em;
+        }
+
+        #progressSyncMediaVisibility .ps-type-tab {
+            min-width: 90px;
+            border: 1px solid var(--ps-border);
+            border-radius: 999px;
+            padding: .45em .9em;
+            background: rgba(255, 255, 255, .03);
+            color: inherit;
+        }
+
+        #progressSyncMediaVisibility .ps-type-tab.is-active {
+            border-color: rgba(0, 164, 220, .6);
+            background: rgba(0, 164, 220, .12);
+        }
+
         #progressSyncMediaVisibility .ps-field {
             display: grid;
             gap: .4em;
@@ -119,6 +140,12 @@
             <section class="ps-panel">
                 <h2 class="sectionTitle">Add a hide rule</h2>
                 <div class="fieldDescription">Search for a title, then choose who can see it. Selecting a show, season, or album also applies the rule to its child media.</div>
+                <div class="ps-type-tabs" role="tablist" aria-label="Media search type">
+                    <button type="button" class="ps-type-tab is-active" data-kind="all" role="tab" aria-selected="true">All</button>
+                    <button type="button" class="ps-type-tab" data-kind="movie" role="tab" aria-selected="false">Movies</button>
+                    <button type="button" class="ps-type-tab" data-kind="series" role="tab" aria-selected="false">Series</button>
+                    <button type="button" class="ps-type-tab" data-kind="music" role="tab" aria-selected="false">Music</button>
+                </div>
                 <div class="ps-search-row">
                     <label class="ps-field">
                         <span class="fieldDescription">Search media</span>
