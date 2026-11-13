@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-sync/main/logo.png",
         "versions": [
             {
+                "version": "1.0.31.0",
+                "changelog": "Add music grouping, media sorting, and poster browsing to progress sync.",
+                "targetAbi": "12.1.0.0",
+                "sourceUrl": "https://github.com/liamfo993/jellyfin-plugin-progress-sync/releases/download/v1.0.31.0/progress-sync_1.0.31.0.zip",
+                "checksum": "43db4255ec1b36d621026378c92b3f28",
+                "timestamp": "2026-11-13T22:14:19Z"
+            },
+            {
                 "version": "1.0.30.0",
                 "changelog": "Avoid full-library counts when searching or browsing media visibility items.",
                 "targetAbi": "12.1.0.0",
