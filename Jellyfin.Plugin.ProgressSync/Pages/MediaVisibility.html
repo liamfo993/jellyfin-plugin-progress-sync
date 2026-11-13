@@ -222,7 +222,7 @@
 
             <section class="ps-panel">
                 <h2 class="sectionTitle">Add a hide rule</h2>
-                <div class="fieldDescription">Browse posters or search by title, then check every item to hide. Selecting a show, season, or album also applies the rule to its child media.</div>
+                <div class="fieldDescription">Browse posters or search by title, then check every item to hide. In Series, choose an entire series (the default) or select individual episodes.</div>
                 <div class="ps-type-tabs" role="tablist" aria-label="Media search type">
                     <button type="button" class="ps-type-tab is-active" data-kind="all" role="tab" aria-selected="true">All</button>
                     <button type="button" class="ps-type-tab" data-kind="movie" role="tab" aria-selected="false">Movies</button>
@@ -230,6 +230,13 @@
                     <button type="button" class="ps-type-tab" data-kind="music" role="tab" aria-selected="false">Music</button>
                 </div>
                 <div class="ps-browse-options">
+                    <label class="ps-field" id="psVisibilitySeriesItemsField" hidden>
+                        <span class="fieldDescription">Series items</span>
+                        <select id="psVisibilitySeriesItems" is="emby-select" class="emby-select">
+                            <option value="series">Entire series</option>
+                            <option value="episodes">Episodes</option>
+                        </select>
+                    </label>
                     <label class="ps-field" id="psVisibilityMusicItemsField" hidden>
                         <span class="fieldDescription">Music items</span>
                         <select id="psVisibilityMusicItems" is="emby-select" class="emby-select">

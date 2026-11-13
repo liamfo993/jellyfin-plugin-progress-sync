@@ -76,6 +76,7 @@ public sealed class MediaVisibilityController : ControllerBase
     /// <param name="search">The item name to search for.</param>
     /// <param name="kind">Optional media type filter.</param>
     /// <param name="musicItems">The music item grouping.</param>
+    /// <param name="seriesItems">The series item grouping.</param>
     /// <param name="sort">The result ordering.</param>
     /// <returns>Matching library items.</returns>
     [HttpGet("Items")]
@@ -85,6 +86,7 @@ public sealed class MediaVisibilityController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? kind = null,
         [FromQuery] string? musicItems = null,
+        [FromQuery] string? seriesItems = null,
         [FromQuery] string? sort = null)
     {
         if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
@@ -92,7 +94,7 @@ public sealed class MediaVisibilityController : ControllerBase
             return BadRequest("Enter at least two characters to search.");
         }
 
-        var includeTypes = ResolveSearchKinds(kind, musicItems);
+        var includeTypes = ResolveSearchKinds(kind, musicItems, seriesItems);
         var orderBy = ResolveSort(sort);
         var items = _libraryManager.GetItemsResult(new InternalItemsQuery
         {
@@ -113,6 +115,7 @@ public sealed class MediaVisibilityController : ControllerBase
     /// <summary>Browses a page of media items that can be hidden.</summary>
     /// <param name="kind">Optional media type filter.</param>
     /// <param name="musicItems">The music item grouping.</param>
+    /// <param name="seriesItems">The series item grouping.</param>
     /// <param name="sort">The result ordering.</param>
     /// <param name="startIndex">The zero-based index of the first item.</param>
     /// <returns>A page of items and whether another page is available.</returns>
@@ -122,6 +125,7 @@ public sealed class MediaVisibilityController : ControllerBase
     public ActionResult<AdminItemBrowseResponse> BrowseItems(
         [FromQuery] string? kind = null,
         [FromQuery] string? musicItems = null,
+        [FromQuery] string? seriesItems = null,
         [FromQuery] string? sort = null,
         [FromQuery] int startIndex = 0)
     {
@@ -136,7 +140,7 @@ public sealed class MediaVisibilityController : ControllerBase
             Recursive = true,
             StartIndex = startIndex,
             Limit = pageSize + 1,
-            IncludeItemTypes = ResolveSearchKinds(kind, musicItems).ToArray(),
+            IncludeItemTypes = ResolveSearchKinds(kind, musicItems, seriesItems).ToArray(),
             EnableTotalRecordCount = false,
             IsVirtualItem = false,
             OrderBy = [ResolveSort(sort)]
@@ -293,7 +297,7 @@ public sealed class MediaVisibilityController : ControllerBase
             rule.CreatedUtc);
     }
 
-    private static List<BaseItemKind> ResolveSearchKinds(string? kind, string? musicItems)
+    private static List<BaseItemKind> ResolveSearchKinds(string? kind, string? musicItems, string? seriesItems)
     {
         if (string.IsNullOrWhiteSpace(kind))
         {
@@ -312,9 +316,18 @@ public sealed class MediaVisibilityController : ControllerBase
         return kind.Trim() switch
         {
             "movie" or "movies" => [BaseItemKind.Movie],
-            "series" or "show" or "shows" => [BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode],
+            "series" or "show" or "shows" => ResolveSeriesKinds(seriesItems),
             "music" or "audio" or "album" or "albums" => ResolveMusicKinds(musicItems),
             _ => [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist]
+        };
+    }
+
+    private static List<BaseItemKind> ResolveSeriesKinds(string? seriesItems)
+    {
+        return seriesItems?.Trim().ToLowerInvariant() switch
+        {
+            "episode" or "episodes" => [BaseItemKind.Episode],
+            _ => [BaseItemKind.Series]
         };
     }
 

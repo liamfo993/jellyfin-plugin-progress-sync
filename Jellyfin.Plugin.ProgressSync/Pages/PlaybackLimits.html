@@ -11,6 +11,12 @@
             display: none !important;
         }
 
+        #progressSyncPlaybackLimits .content-primary {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+        }
+
         #progressSyncPlaybackLimits .ps-hero,
         #progressSyncPlaybackLimits .ps-panel,
         #progressSyncPlaybackLimits .ps-limit-card,
@@ -52,6 +58,11 @@
             padding: 1.25em;
         }
 
+        #progressSyncPlaybackLimits form {
+            width: 100%;
+            max-width: none;
+        }
+
         #progressSyncPlaybackLimits .ps-panel-header {
             display: flex;
             flex-wrap: wrap;
@@ -67,15 +78,17 @@
 
         #progressSyncPlaybackLimits .ps-limit-list {
             display: grid;
+            width: 100%;
             gap: .65em;
         }
 
         #progressSyncPlaybackLimits .ps-limit-card {
             display: grid;
-            grid-template-columns: minmax(170px, 1fr) minmax(210px, .7fr);
+            grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
             align-items: center;
             gap: 1em;
             padding: .9em 1em;
+            box-sizing: border-box;
         }
 
         #progressSyncPlaybackLimits .ps-limit-user {
@@ -104,9 +117,10 @@
 
         #progressSyncPlaybackLimits .ps-limit-control {
             display: grid;
-            grid-template-columns: minmax(120px, .7fr) minmax(190px, 1fr);
+            grid-template-columns: minmax(0, .7fr) minmax(0, 1fr);
             align-items: end;
             gap: .85em;
+            min-width: 0;
         }
 
         #progressSyncPlaybackLimits .ps-limit-field {
@@ -130,6 +144,7 @@
 
         #progressSyncPlaybackLimits .ps-limit-policy {
             width: 100%;
+            min-width: 0;
         }
 
         #progressSyncPlaybackLimits .ps-limit-description {
@@ -151,14 +166,16 @@
             text-align: center;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 800px) {
             #progressSyncPlaybackLimits .ps-limit-card {
                 grid-template-columns: 1fr;
                 gap: .6em;
             }
+        }
 
+        @media (max-width: 520px) {
             #progressSyncPlaybackLimits .ps-limit-control {
-                grid-template-columns: minmax(100px, .7fr) minmax(160px, 1fr);
+                grid-template-columns: 1fr;
             }
         }
     </style>

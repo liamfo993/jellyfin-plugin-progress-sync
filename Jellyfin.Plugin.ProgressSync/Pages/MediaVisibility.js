@@ -34,6 +34,7 @@ export default function (view) {
     const saveStatus = page.querySelector('#psVisibilitySaveStatus');
     const addButton = page.querySelector('#psAddVisibilityRule');
     const mediaTabs = page.querySelectorAll('.ps-type-tab');
+    const seriesItemsSelect = page.querySelector('#psVisibilitySeriesItems');
     const musicItemsSelect = page.querySelector('#psVisibilityMusicItems');
     const selectedItems = new Map();
     let activeMediaKind = 'all';
@@ -57,6 +58,7 @@ export default function (view) {
                 tab.classList.toggle('is-active', isActive);
                 tab.setAttribute('aria-selected', String(isActive));
             });
+            updateSeriesItemsControl();
             updateMusicItemsControl();
             refreshItems();
         });
@@ -71,6 +73,7 @@ export default function (view) {
         loadBrowseItems(true);
     });
     page.querySelector('#psVisibilitySort').addEventListener('change', refreshItems);
+    seriesItemsSelect.addEventListener('change', refreshItems);
     musicItemsSelect.addEventListener('change', refreshItems);
     itemsContainer.addEventListener('change', updateSelectedItem);
     page.querySelector('#psVisibilitySearch').addEventListener('keydown', function (event) {
@@ -84,6 +87,7 @@ export default function (view) {
     });
     page.querySelector('#psVisibilityForm').addEventListener('submit', addRule);
     rulesContainer.addEventListener('click', deleteRule);
+    updateSeriesItemsControl();
     updateMusicItemsControl();
     updateSelectionStatus();
 
@@ -221,7 +225,15 @@ export default function (view) {
             url.searchParams.set('musicItems', musicItemsSelect.value);
         }
 
+        if (activeMediaKind === 'series') {
+            url.searchParams.set('seriesItems', seriesItemsSelect.value);
+        }
+
         url.searchParams.set('sort', page.querySelector('#psVisibilitySort').value);
+    }
+
+    function updateSeriesItemsControl() {
+        page.querySelector('#psVisibilitySeriesItemsField').hidden = activeMediaKind !== 'series';
     }
 
     function updateMusicItemsControl() {
