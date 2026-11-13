@@ -48,6 +48,9 @@ jobs:
       - name: Run tests
         run: dotnet test -c Release
 
+      - name: Test Progress Sync page
+        run: node --test Jellyfin.Plugin.ProgressSync.Tests/ProgressSyncPage.test.cjs
+
       - name: Build plugin zip
         run: |
           VERSION="${TAG#v}"

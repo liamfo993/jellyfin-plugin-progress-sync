@@ -133,11 +133,12 @@ server log.
 
 ## Building
 
-Requires the .NET 10 SDK.
+Requires the .NET 10 SDK and Node.js for the page tests.
 
 ```sh
 dotnet build -c Release
 dotnet test -c Release
+node --test Jellyfin.Plugin.ProgressSync.Tests/ProgressSyncPage.test.cjs
 ```
 
 Releases are packaged by the release workflow (see [docs/RELEASING.md](docs/RELEASING.md)).

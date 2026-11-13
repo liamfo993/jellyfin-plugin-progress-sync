@@ -1269,17 +1269,18 @@
                 });
 
                 page.addEventListener('pageshow', function () {
-                    Dashboard.showLoadingMsg();
-                    updateMusicItemsControl();
+                    updateItemGroupControls();
                     loadAdminBrowseItems(false);
+                    var status = page.querySelector('#psFtStatus');
+                    var loading = document.createElement('p');
+                    loading.textContent = 'Loading sync settings...';
+                    status.classList.remove('is-active');
+                    status.replaceChildren(loading);
                     refreshOverview().catch(function (err) {
-                        var status = page.querySelector('#psFtStatus');
                         var message = document.createElement('p');
                         message.textContent = 'Could not load status (' + errorText(err) + ').';
                         status.classList.remove('is-active');
                         status.replaceChildren(message);
-                    }).finally(function () {
-                        Dashboard.hideLoadingMsg();
                     });
                 });
             })();
