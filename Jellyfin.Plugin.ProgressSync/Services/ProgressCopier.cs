@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.ProgressSync.Models;
 using MediaBrowser.Controller.Dto;
@@ -52,7 +53,7 @@ public sealed class ProgressCopier
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(opened);
 
-        var scope = FilterVisible(EnumerateLeaves(opened, target), target, source);
+        var scope = FilterVisible(EnumerateLeaves(opened, target, _libraryManager), target, source);
         var copied = CopyItems(source, target, scope.Items, reason);
         var result = new CopyResult(copied.Updated, scope.Skipped, scope.Items.Count + scope.Skipped);
 
@@ -78,9 +79,21 @@ public sealed class ProgressCopier
     /// <exception cref="ArgumentException">The item type is not supported.</exception>
     internal static IReadOnlyList<BaseItem> EnumerateLeaves(BaseItem opened, User target)
     {
+        return EnumerateLeaves(opened, target, null);
+    }
+
+    internal static IReadOnlyList<BaseItem> EnumerateLeaves(BaseItem opened, User target, ILibraryManager? libraryManager)
+    {
         IEnumerable<BaseItem> leaves = opened switch
         {
             Audio audio => [audio],
+            MusicAlbum album when libraryManager is not null => libraryManager.GetItemsResult(new InternalItemsQuery(target)
+            {
+                ParentId = album.Id,
+                Recursive = true,
+                IncludeItemTypes = [BaseItemKind.Audio],
+                IsVirtualItem = false
+            }).Items,
             Movie movie => movie.GetAllVersions(),
             Episode episode => episode.GetAllVersions(),
             Season season => season.GetEpisodes(target, new DtoOptions(true), false)

@@ -55,6 +55,13 @@
             margin: 1em 0;
         }
 
+        #progressSyncMediaVisibility .ps-browse-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: .85em;
+            margin: 1em 0;
+        }
+
         #progressSyncMediaVisibility .ps-type-tabs {
             display: flex;
             flex-wrap: wrap;
@@ -199,6 +206,27 @@
                     <button type="button" class="ps-type-tab" data-kind="movie" role="tab" aria-selected="false">Movies</button>
                     <button type="button" class="ps-type-tab" data-kind="series" role="tab" aria-selected="false">Series</button>
                     <button type="button" class="ps-type-tab" data-kind="music" role="tab" aria-selected="false">Music</button>
+                </div>
+                <div class="ps-browse-options">
+                    <label class="ps-field" id="psVisibilityMusicItemsField" hidden>
+                        <span class="fieldDescription">Music items</span>
+                        <select id="psVisibilityMusicItems" is="emby-select" class="emby-select">
+                            <option value="albums">Albums</option>
+                            <option value="songs">Songs</option>
+                            <option value="both">Albums and songs</option>
+                        </select>
+                    </label>
+                    <label class="ps-field">
+                        <span class="fieldDescription">Sort by</span>
+                        <select id="psVisibilitySort" is="emby-select" class="emby-select">
+                            <option value="added">Recently added</option>
+                            <option value="released">Recently released</option>
+                            <option value="alphabetical">Alphabetical (A–Z)</option>
+                            <option value="z-a">Alphabetical (Z–A)</option>
+                            <option value="oldest-added">Oldest added</option>
+                            <option value="oldest-released">Oldest released</option>
+                        </select>
+                    </label>
                 </div>
                 <div class="ps-search-row">
                     <label class="ps-field">

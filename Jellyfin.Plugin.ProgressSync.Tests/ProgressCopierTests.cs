@@ -4,8 +4,11 @@ using Jellyfin.Plugin.ProgressSync.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.ProgressSync.Tests;
@@ -100,5 +103,18 @@ public class ProgressCopierTests
         var audio = new Audio { Id = Guid.NewGuid() };
 
         Assert.Same(audio, Assert.Single(ProgressCopier.EnumerateLeaves(audio, target)));
+    }
+
+    [Fact]
+    public void EnumerateLeaves_MusicAlbumReturnsItsTracks()
+    {
+        var target = _server.AddUser("bob");
+        var album = new MusicAlbum { Id = Guid.NewGuid() };
+        var track = new Audio { Id = Guid.NewGuid(), ParentId = album.Id };
+        var library = new Mock<ILibraryManager>();
+        library.Setup(manager => manager.GetItemsResult(It.Is<InternalItemsQuery>(query => query.ParentId == album.Id)))
+            .Returns(new QueryResult<BaseItem>([track]));
+
+        Assert.Same(track, Assert.Single(ProgressCopier.EnumerateLeaves(album, target, library.Object)));
     }
 }

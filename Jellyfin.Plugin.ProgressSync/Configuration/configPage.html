@@ -107,9 +107,75 @@
 
         #progressSyncConfigPage .ps-search-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(0, 1fr) auto auto;
             align-items: end;
             gap: .75em;
+        }
+
+        #progressSyncConfigPage .ps-browse-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: .75em;
+            margin: .75em 0;
+        }
+
+        #progressSyncConfigPage .ps-item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: .85em;
+            margin: 1em 0;
+        }
+
+        #progressSyncConfigPage .ps-item-card {
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid var(--ps-border);
+            border-radius: 9px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncConfigPage .ps-item-poster {
+            display: grid;
+            overflow: hidden;
+            aspect-ratio: 2 / 3;
+            place-items: center;
+            background: linear-gradient(145deg, rgba(0, 164, 220, .2), rgba(255, 255, 255, .04));
+        }
+
+        #progressSyncConfigPage .ps-item-poster img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #progressSyncConfigPage .ps-item-placeholder {
+            padding: 1em;
+            color: var(--secondary-text-color, #aaa);
+            font-size: .85em;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        #progressSyncConfigPage .ps-item-choice {
+            display: flex;
+            align-items: flex-start;
+            gap: .5em;
+            padding: .65em;
+            cursor: pointer;
+        }
+
+        #progressSyncConfigPage .ps-item-card.is-selected {
+            border-color: rgba(0, 164, 220, .8);
+            box-shadow: 0 0 0 2px rgba(0, 164, 220, .25);
+        }
+
+        #progressSyncConfigPage .ps-item-name {
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            font-size: .9em;
+            font-weight: 600;
         }
 
         #progressSyncConfigPage .ps-search-tabs {
@@ -369,16 +435,40 @@
                                 <div class="inputContainer">
                                     <label class="inputLabel inputLabelUnfocused" for="psItemSearch">Search for a title</label>
                                     <input id="psItemSearch" is="emby-input" type="search" minlength="2" autocomplete="off">
-                                    <div class="fieldDescription">Movies, series, and music. Enter at least two characters.</div>
+                                    <div class="fieldDescription">Movies, series, albums, and songs. Enter at least two characters or browse the posters.</div>
                                 </div>
                                 <button id="psSearchItems" type="button" class="emby-button raised">
                                     <span>Search</span>
                                 </button>
+                                <button id="psBrowseItems" type="button" class="emby-button raised">
+                                    <span>Browse library</span>
+                                </button>
                             </div>
-                            <div class="selectContainer">
-                                <label class="selectLabel" for="psItem">Choose a title</label>
-                                <select id="psItem" is="emby-select" class="emby-select" required></select>
+                            <div class="ps-browse-options">
+                                <label class="selectContainer" id="psMusicItemsField" hidden>
+                                    <span class="selectLabel">Music items</span>
+                                    <select id="psMusicItems" is="emby-select" class="emby-select">
+                                        <option value="albums">Albums</option>
+                                        <option value="songs">Songs</option>
+                                        <option value="both">Albums and songs</option>
+                                    </select>
+                                </label>
+                                <label class="selectContainer">
+                                    <span class="selectLabel">Sort by</span>
+                                    <select id="psItemSort" is="emby-select" class="emby-select">
+                                        <option value="added">Recently added</option>
+                                        <option value="released">Recently released</option>
+                                        <option value="alphabetical">Alphabetical (A–Z)</option>
+                                        <option value="z-a">Alphabetical (Z–A)</option>
+                                        <option value="oldest-added">Oldest added</option>
+                                        <option value="oldest-released">Oldest released</option>
+                                    </select>
+                                </label>
                             </div>
+                            <div id="psItemResults" class="ps-item-grid" aria-label="Media items"></div>
+                            <button id="psLoadMoreItems" type="button" class="emby-button raised" hidden><span>Load more</span></button>
+                            <div id="psSelectedItem" class="fieldDescription" role="status" aria-live="polite">No title selected.</div>
+                            <div id="psAlbumSyncNotice" class="fieldDescription" hidden>Albums can be copied once. Select songs to create a continuous sync.</div>
                             <div class="ps-user-flow">
                                 <div class="selectContainer">
                                     <label class="selectLabel" for="psSourceUser">From user</label>
@@ -481,6 +571,10 @@
                 var globalUsers = [];
                 var globalSettings = null;
                 var activeItemKind = 'all';
+                var selectedAdminItem = null;
+                var adminBrowseOffset = 0;
+                var adminBrowseHasMore = false;
+                var adminItemRequestId = 0;
 
                 function loadGlobalSettings(data) {
                     globalUsers = data.Users;
@@ -710,46 +804,171 @@
                 function searchItems() {
                     var search = page.querySelector('#psItemSearch').value.trim();
                     var status = page.querySelector('#psSetupStatus');
-                    var button = page.querySelector('#psSearchItems');
-                    var select = page.querySelector('#psItem');
                     if (search.length < 2) {
-                        status.textContent = 'Enter at least two characters to search.';
+                        status.textContent = 'Enter at least two characters to search, or choose Browse library.';
                         return;
                     }
 
-                    var kind = activeItemKind === 'all' ? '' : activeItemKind;
-                    button.disabled = true;
-                    select.innerHTML = '';
-                    var searching = document.createElement('option');
-                    searching.value = '';
-                    searching.textContent = 'Searching...';
-                    select.appendChild(searching);
+                    var requestId = ++adminItemRequestId;
+                    page.querySelector('#psItemResults').replaceChildren();
+                    page.querySelector('#psLoadMoreItems').hidden = true;
+                    setSelectedAdminItem(null);
                     status.textContent = 'Searching the library...';
                     var url = new URL(ApiClient.getUrl('ProgressSync/Admin/Items'));
                     url.searchParams.set('search', search);
-                    if (kind) {
-                        url.searchParams.set('kind', kind);
-                    }
+                    setAdminItemFilters(url);
                     ApiClient.getJSON(url.toString()).then(function (items) {
-                        select.innerHTML = '';
-                        var placeholder = document.createElement('option');
-                        placeholder.value = '';
-                        placeholder.textContent = items.length ? 'Select an item' : 'No matching items';
-                        select.appendChild(placeholder);
-                        items.forEach(function (item) {
-                            var option = document.createElement('option');
-                            option.value = item.Id;
-                            option.textContent = item.Name + ' (' + item.Type + ')';
-                            select.appendChild(option);
-                        });
+                        if (requestId !== adminItemRequestId) {
+                            return;
+                        }
+
+                        renderAdminItems(items, false);
                         status.textContent = items.length
-                            ? 'Found ' + items.length + ' matching item(s). Choose one below.'
-                            : 'No matching ' + (kind ? kind : 'items') + '. Try another title.';
+                            ? 'Found ' + items.length + ' matching item(s). Choose a poster.'
+                            : 'No matching items. Try another title.';
                     }, function (err) {
-                        status.textContent = 'Could not search the library (' + errorText(err) + ').';
-                    }).finally(function () {
-                        button.disabled = false;
+                        if (requestId === adminItemRequestId) {
+                            status.textContent = 'Could not search the library (' + errorText(err) + ').';
+                        }
                     });
+                }
+
+                function setAdminItemFilters(url) {
+                    if (activeItemKind !== 'all') {
+                        url.searchParams.set('kind', activeItemKind);
+                    }
+                    if (activeItemKind === 'music') {
+                        url.searchParams.set('musicItems', page.querySelector('#psMusicItems').value);
+                    }
+                    url.searchParams.set('sort', page.querySelector('#psItemSort').value);
+                }
+
+                function setSelectedAdminItem(item) {
+                    selectedAdminItem = item;
+                    var status = page.querySelector('#psSelectedItem');
+                    var syncMode = page.querySelector('#psSyncMode');
+                    var isAlbum = item && item.Type === 'MusicAlbum';
+                    status.textContent = item ? 'Selected: ' + item.Name + ' (' + item.Type + ')' : 'No title selected.';
+                    page.querySelector('#psAlbumSyncNotice').hidden = !isAlbum;
+                    Array.from(syncMode.options).forEach(function (option) {
+                        option.disabled = Boolean(isAlbum && option.value);
+                    });
+                    if (isAlbum) {
+                        syncMode.value = '';
+                        updateModeSummary();
+                    }
+                    page.querySelectorAll('#psItemResults .ps-item-card').forEach(function (card) {
+                        card.classList.toggle('is-selected', card.dataset.itemId === (item ? item.Id : ''));
+                        var radio = card.querySelector('input[type="radio"]');
+                        radio.checked = Boolean(item && card.dataset.itemId === item.Id);
+                    });
+                }
+
+                function renderAdminItems(items, append) {
+                    var container = page.querySelector('#psItemResults');
+                    if (!append) {
+                        container.replaceChildren();
+                    }
+
+                    var fragment = document.createDocumentFragment();
+                    items.forEach(function (item) {
+                        var card = document.createElement('div');
+                        card.className = 'ps-item-card';
+                        card.dataset.itemId = item.Id;
+                        card.dataset.itemName = item.Name;
+                        card.dataset.itemType = item.Type;
+                        var poster = document.createElement('div');
+                        poster.className = 'ps-item-poster';
+                        var image = document.createElement('img');
+                        image.alt = '';
+                        image.loading = 'lazy';
+                        image.src = ApiClient.getScaledImageUrl(item.Id, { type: 'Primary', maxWidth: 300, quality: 85 });
+                        image.addEventListener('error', function () {
+                            var placeholder = document.createElement('span');
+                            placeholder.className = 'ps-item-placeholder';
+                            placeholder.textContent = item.Type;
+                            poster.replaceChildren(placeholder);
+                        }, { once: true });
+                        poster.appendChild(image);
+
+                        var choice = document.createElement('label');
+                        choice.className = 'ps-item-choice';
+                        var radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = 'psAdminItemChoice';
+                        radio.value = item.Id;
+                        radio.setAttribute('aria-label', 'Select ' + item.Name);
+                        var name = document.createElement('span');
+                        name.className = 'ps-item-name';
+                        name.textContent = item.Name + ' (' + item.Type + ')';
+                        choice.append(radio, name);
+                        card.append(poster, choice);
+                        fragment.appendChild(card);
+                    });
+                    container.appendChild(fragment);
+                    if (selectedAdminItem) {
+                        setSelectedAdminItem(selectedAdminItem);
+                    }
+                }
+
+                async function loadAdminBrowseItems(append) {
+                    var button = page.querySelector('#psLoadMoreItems');
+                    if (append && button.disabled) {
+                        return;
+                    }
+
+                    var requestId = ++adminItemRequestId;
+                    var startIndex = append ? adminBrowseOffset : 0;
+                    var status = page.querySelector('#psSetupStatus');
+                    if (!append) {
+                        adminBrowseOffset = 0;
+                        adminBrowseHasMore = false;
+                        page.querySelector('#psItemResults').replaceChildren();
+                        setSelectedAdminItem(null);
+                    }
+
+                    button.disabled = true;
+                    button.hidden = true;
+                    status.textContent = append ? 'Loading more media...' : 'Loading library posters...';
+                    try {
+                        var url = new URL(ApiClient.getUrl('ProgressSync/Admin/Browse'));
+                        url.searchParams.set('startIndex', String(startIndex));
+                        setAdminItemFilters(url);
+                        var result = await ApiClient.getJSON(url.toString());
+                        if (requestId !== adminItemRequestId) {
+                            return;
+                        }
+
+                        adminBrowseOffset = startIndex + result.Items.length;
+                        adminBrowseHasMore = result.HasMore;
+                        renderAdminItems(result.Items, append);
+                        status.textContent = adminBrowseOffset
+                            ? 'Showing ' + adminBrowseOffset + ' items'
+                                + (adminBrowseHasMore ? ' so far. Load more to continue.' : '. Choose a poster.')
+                            : 'No matching items in this category.';
+                        button.hidden = !adminBrowseHasMore;
+                    } catch (err) {
+                        if (requestId === adminItemRequestId) {
+                            status.textContent = 'Could not browse the library (' + errorText(err) + ').';
+                            button.hidden = !append || !adminBrowseHasMore;
+                        }
+                    } finally {
+                        if (requestId === adminItemRequestId) {
+                            button.disabled = false;
+                        }
+                    }
+                }
+
+                function refreshAdminItems() {
+                    if (page.querySelector('#psItemSearch').value.trim().length >= 2) {
+                        searchItems();
+                    } else {
+                        loadAdminBrowseItems(false);
+                    }
+                }
+
+                function updateMusicItemsControl() {
+                    page.querySelector('#psMusicItemsField').hidden = activeItemKind !== 'music';
                 }
 
                 async function deactivateLink(link, button) {
@@ -860,13 +1079,34 @@
                             tab.classList.toggle('is-active', isActive);
                             tab.setAttribute('aria-selected', String(isActive));
                         });
-                        if (page.querySelector('#psItemSearch').value.trim().length >= 2) {
-                            searchItems();
-                        }
+                        updateMusicItemsControl();
+                        refreshAdminItems();
                     });
                 });
 
                 page.querySelector('#psSearchItems').addEventListener('click', searchItems);
+                page.querySelector('#psBrowseItems').addEventListener('click', function () {
+                    page.querySelector('#psItemSearch').value = '';
+                    loadAdminBrowseItems(false);
+                });
+                page.querySelector('#psLoadMoreItems').addEventListener('click', function () {
+                    loadAdminBrowseItems(true);
+                });
+                page.querySelector('#psItemSort').addEventListener('change', refreshAdminItems);
+                page.querySelector('#psMusicItems').addEventListener('change', refreshAdminItems);
+                page.querySelector('#psItemResults').addEventListener('change', function (event) {
+                    var radio = event.target.closest('input[type="radio"][name="psAdminItemChoice"]');
+                    if (!radio) {
+                        return;
+                    }
+
+                    var card = radio.closest('.ps-item-card');
+                    setSelectedAdminItem({
+                        Id: radio.value,
+                        Name: card.dataset.itemName,
+                        Type: card.dataset.itemType
+                    });
+                });
                 page.querySelector('#psItemSearch').addEventListener('keydown', function (event) {
                     if (event.key === 'Enter') {
                         event.preventDefault();
@@ -874,22 +1114,16 @@
                     }
                 });
                 page.querySelector('#psItemSearch').addEventListener('input', function () {
-                    var select = page.querySelector('#psItem');
-                    select.innerHTML = '';
-                    var placeholder = document.createElement('option');
-                    placeholder.value = '';
-                    placeholder.textContent = 'Search and select an item';
-                    select.appendChild(placeholder);
+                    setSelectedAdminItem(null);
                 });
 
                 page.querySelector('#psSetupForm').addEventListener('submit', async function (event) {
                     event.preventDefault();
                     var button = page.querySelector('#psApplySync');
                     var status = page.querySelector('#psSetupStatus');
-                    var itemSelect = page.querySelector('#psItem');
                     var sourceSelect = page.querySelector('#psSourceUser');
                     var targetSelect = page.querySelector('#psTargetUser');
-                    var itemId = itemSelect.value;
+                    var itemId = selectedAdminItem ? selectedAdminItem.Id : '';
                     var sourceUserId = sourceSelect.value;
                     var targetUserId = targetSelect.value;
                     var mode = page.querySelector('#psSyncMode').value;
@@ -909,7 +1143,7 @@
                     button.disabled = true;
                     try {
                         confirmed = await confirmAsync(
-                            'This will ' + operation + ' for ' + itemSelect.options[itemSelect.selectedIndex].text
+                            'This will ' + operation + ' for ' + selectedAdminItem.Name + ' (' + selectedAdminItem.Type + ')'
                                 + ' from ' + sourceSelect.options[sourceSelect.selectedIndex].text
                                 + ' to ' + targetSelect.options[targetSelect.selectedIndex].text + '. Continue?',
                             mode ? 'Set up continuous sync' : 'Copy progress once'
@@ -1020,6 +1254,8 @@
 
                 page.addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
+                    updateMusicItemsControl();
+                    loadAdminBrowseItems(false);
                     refreshOverview().catch(function (err) {
                         var status = page.querySelector('#psFtStatus');
                         var message = document.createElement('p');

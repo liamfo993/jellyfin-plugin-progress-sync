@@ -577,31 +577,81 @@ public sealed class ProgressSyncController : ControllerBase
     /// </summary>
     /// <param name="search">The item name to search for.</param>
     /// <param name="kind">Optional media type filter.</param>
+    /// <param name="musicItems">The music item grouping.</param>
+    /// <param name="sort">The result ordering.</param>
     /// <returns>Matching library items.</returns>
     [HttpGet("Admin/Items")]
     [Authorize(Policy = Policies.RequiresElevation)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult<IReadOnlyList<AdminItemDto>> SearchAdminItems([FromQuery] string? search, [FromQuery] string? kind = null)
+    public ActionResult<IReadOnlyList<AdminItemDto>> SearchAdminItems(
+        [FromQuery] string? search,
+        [FromQuery] string? kind = null,
+        [FromQuery] string? musicItems = null,
+        [FromQuery] string? sort = null)
     {
         if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
         {
             return BadRequest("Enter at least two characters to search.");
         }
 
-        var includeTypes = ResolveAdminSearchKinds(kind);
+        var includeTypes = ResolveAdminSearchKinds(kind, musicItems);
         var items = _libraryManager.GetItemsResult(new InternalItemsQuery
         {
             SearchTerm = search.Trim(),
             Recursive = true,
             Limit = 50,
-            IncludeItemTypes = includeTypes.ToArray()
+            IncludeItemTypes = includeTypes.ToArray(),
+            EnableTotalRecordCount = false,
+            OrderBy = [ResolveAdminItemSort(sort)]
         }).Items
             .Where(item => !item.IsVirtualItem)
             .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
             .ToList();
 
         return items;
+    }
+
+    /// <summary>
+    /// Browses a page of movies, series and music for admin sync setup.
+    /// </summary>
+    /// <param name="kind">Optional media type filter.</param>
+    /// <param name="musicItems">The music item grouping.</param>
+    /// <param name="sort">The result ordering.</param>
+    /// <param name="startIndex">The zero-based index of the first item.</param>
+    /// <returns>A page of items and whether more are available.</returns>
+    [HttpGet("Admin/Browse")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(typeof(AdminItemBrowseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<AdminItemBrowseResponse> BrowseAdminItems(
+        [FromQuery] string? kind = null,
+        [FromQuery] string? musicItems = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] int startIndex = 0)
+    {
+        if (startIndex < 0)
+        {
+            return BadRequest("The start index cannot be negative.");
+        }
+
+        const int pageSize = 50;
+        var result = _libraryManager.GetItemsResult(new InternalItemsQuery
+        {
+            Recursive = true,
+            StartIndex = startIndex,
+            Limit = pageSize + 1,
+            IncludeItemTypes = ResolveAdminSearchKinds(kind, musicItems).ToArray(),
+            IsVirtualItem = false,
+            EnableTotalRecordCount = false,
+            OrderBy = [ResolveAdminItemSort(sort)]
+        });
+        var supportedItems = result.Items
+            .Where(item => !item.IsVirtualItem)
+            .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
+            .ToList();
+        var hasMore = supportedItems.Count > pageSize;
+        return new AdminItemBrowseResponse(supportedItems.Take(pageSize).ToList(), hasMore);
     }
 
     /// <summary>
@@ -642,6 +692,11 @@ public sealed class ProgressSyncController : ControllerBase
         if (!IsSupported(item))
         {
             return BadRequest("Choose a movie, series, or audio item.");
+        }
+
+        if (item is MusicAlbum && request.Mode is not null)
+        {
+            return BadRequest("Albums can be copied once; select songs for continuous sync.");
         }
 
         if (request.Mode is not { } mode)
@@ -967,7 +1022,7 @@ public sealed class ProgressSyncController : ControllerBase
             && (profile.Movies || profile.Series || profile.Music);
     }
 
-    private static List<BaseItemKind> ResolveAdminSearchKinds(string? kind)
+    private static List<BaseItemKind> ResolveAdminSearchKinds(string? kind, string? musicItems)
     {
         if (string.IsNullOrWhiteSpace(kind))
         {
@@ -978,8 +1033,31 @@ public sealed class ProgressSyncController : ControllerBase
         {
             "movie" or "movies" => [BaseItemKind.Movie],
             "series" or "show" or "shows" => [BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode],
-            "music" or "audio" or "album" or "albums" => [BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist],
+            "music" or "audio" or "album" or "albums" => ResolveAdminMusicKinds(musicItems),
             _ => [BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Season, BaseItemKind.Episode, BaseItemKind.Audio, BaseItemKind.MusicAlbum, BaseItemKind.MusicArtist]
+        };
+    }
+
+    private static List<BaseItemKind> ResolveAdminMusicKinds(string? musicItems)
+    {
+        return musicItems?.Trim().ToLowerInvariant() switch
+        {
+            "song" or "songs" or "track" or "tracks" => [BaseItemKind.Audio],
+            "both" or "all" => [BaseItemKind.Audio, BaseItemKind.MusicAlbum],
+            _ => [BaseItemKind.MusicAlbum]
+        };
+    }
+
+    private static (ItemSortBy SortBy, SortOrder SortOrder) ResolveAdminItemSort(string? sort)
+    {
+        return sort?.Trim().ToLowerInvariant() switch
+        {
+            "added" => (ItemSortBy.DateCreated, SortOrder.Descending),
+            "oldest-added" => (ItemSortBy.DateCreated, SortOrder.Ascending),
+            "released" => (ItemSortBy.PremiereDate, SortOrder.Descending),
+            "oldest-released" => (ItemSortBy.PremiereDate, SortOrder.Ascending),
+            "z-a" => (ItemSortBy.SortName, SortOrder.Descending),
+            _ => (ItemSortBy.SortName, SortOrder.Ascending)
         };
     }
 

@@ -34,6 +34,7 @@ export default function (view) {
     const saveStatus = page.querySelector('#psVisibilitySaveStatus');
     const addButton = page.querySelector('#psAddVisibilityRule');
     const mediaTabs = page.querySelectorAll('.ps-type-tab');
+    const musicItemsSelect = page.querySelector('#psVisibilityMusicItems');
     const selectedItems = new Map();
     let activeMediaKind = 'all';
     let browseOffset = 0;
@@ -56,11 +57,8 @@ export default function (view) {
                 tab.classList.toggle('is-active', isActive);
                 tab.setAttribute('aria-selected', String(isActive));
             });
-            if (page.querySelector('#psVisibilitySearch').value.trim().length >= 2) {
-                searchItems();
-            } else {
-                loadBrowseItems(false);
-            }
+            updateMusicItemsControl();
+            refreshItems();
         });
     });
 
@@ -72,6 +70,8 @@ export default function (view) {
     loadMoreButton.addEventListener('click', function () {
         loadBrowseItems(true);
     });
+    page.querySelector('#psVisibilitySort').addEventListener('change', refreshItems);
+    musicItemsSelect.addEventListener('change', refreshItems);
     itemsContainer.addEventListener('change', updateSelectedItem);
     page.querySelector('#psVisibilitySearch').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
@@ -84,6 +84,7 @@ export default function (view) {
     });
     page.querySelector('#psVisibilityForm').addEventListener('submit', addRule);
     rulesContainer.addEventListener('click', deleteRule);
+    updateMusicItemsControl();
     updateSelectionStatus();
 
     async function loadSettings() {
@@ -176,9 +177,7 @@ export default function (view) {
         try {
             const url = new URL(ApiClient.getUrl('ProgressSync/Admin/Visibility/Items'));
             url.searchParams.set('search', query);
-            if (kind) {
-                url.searchParams.set('kind', kind);
-            }
+            setItemFilters(url);
 
             const results = await ApiClient.getJSON(url.toString());
             if (requestId !== itemRequestId) {
@@ -199,6 +198,30 @@ export default function (view) {
         }
     }
 
+    function setItemFilters(url) {
+        if (activeMediaKind !== 'all') {
+            url.searchParams.set('kind', activeMediaKind);
+        }
+
+        if (activeMediaKind === 'music') {
+            url.searchParams.set('musicItems', musicItemsSelect.value);
+        }
+
+        url.searchParams.set('sort', page.querySelector('#psVisibilitySort').value);
+    }
+
+    function updateMusicItemsControl() {
+        page.querySelector('#psVisibilityMusicItemsField').hidden = activeMediaKind !== 'music';
+    }
+
+    function refreshItems() {
+        if (page.querySelector('#psVisibilitySearch').value.trim().length >= 2) {
+            searchItems();
+        } else {
+            loadBrowseItems(false);
+        }
+    }
+
     async function loadBrowseItems(append) {
         if (append && loadMoreButton.disabled) {
             return;
@@ -206,7 +229,6 @@ export default function (view) {
 
         const requestId = ++itemRequestId;
         const startIndex = append ? browseOffset : 0;
-        const kind = activeMediaKind === 'all' ? '' : activeMediaKind;
         if (!append) {
             browseOffset = 0;
             browseHasMore = false;
@@ -219,9 +241,7 @@ export default function (view) {
         try {
             const url = new URL(ApiClient.getUrl('ProgressSync/Admin/Visibility/Browse'));
             url.searchParams.set('startIndex', String(startIndex));
-            if (kind) {
-                url.searchParams.set('kind', kind);
-            }
+            setItemFilters(url);
 
             const result = await ApiClient.getJSON(url.toString());
             if (requestId !== itemRequestId) {
