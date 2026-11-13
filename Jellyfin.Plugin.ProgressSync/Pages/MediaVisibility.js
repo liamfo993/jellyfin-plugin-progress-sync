@@ -20,6 +20,8 @@ function dateLabel(month, day) {
     return new Date(2000, month - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+const ALL_USERS_VALUE = 'all';
+
 export default function (view) {
     const page = view.querySelector('#progressSyncMediaVisibility');
     const usersSelect = page.querySelector('#psVisibilityUser');
@@ -84,7 +86,7 @@ export default function (view) {
     function renderUsers(users) {
         const fragment = document.createDocumentFragment();
         const allUsers = document.createElement('option');
-        allUsers.value = '';
+        allUsers.value = ALL_USERS_VALUE;
         allUsers.textContent = 'Everyone (global rule)';
         fragment.appendChild(allUsers);
         users.forEach(function (user) {
@@ -199,7 +201,7 @@ export default function (view) {
 
         const body = {
             ItemId: itemSelect.value,
-            UserId: usersSelect.value || null,
+            UserId: usersSelect.value === ALL_USERS_VALUE ? null : usersSelect.value,
             VisibleFromMonth: scheduled ? Number(from.slice(5, 7)) : null,
             VisibleFromDay: scheduled ? Number(from.slice(8, 10)) : null,
             VisibleThroughMonth: scheduled ? Number(through.slice(5, 7)) : null,

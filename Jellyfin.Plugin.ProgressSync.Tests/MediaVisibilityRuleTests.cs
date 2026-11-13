@@ -24,6 +24,7 @@ public sealed class MediaVisibilityRuleTests
         Assert.False(rule.IsHiddenOn(new DateOnly(2026, 12, 1)));
         Assert.False(rule.IsHiddenOn(new DateOnly(2026, 12, 31)));
         Assert.True(rule.IsHiddenOn(new DateOnly(2027, 1, 1)));
+        Assert.False(rule.IsHiddenOn(new DateOnly(2027, 12, 25)));
     }
 
     [Fact]
