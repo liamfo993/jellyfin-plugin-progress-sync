@@ -25,20 +25,27 @@ const ALL_USERS_VALUE = 'all';
 export default function (view) {
     const page = view.querySelector('#progressSyncMediaVisibility');
     const usersSelect = page.querySelector('#psVisibilityUser');
-    const itemSelect = page.querySelector('#psVisibilityItem');
+    const itemsContainer = page.querySelector('#psVisibilityItems');
+    const loadMoreButton = page.querySelector('#psVisibilityLoadMore');
     const rulesContainer = page.querySelector('#psVisibilityRules');
     const rulesStatus = page.querySelector('#psVisibilityRulesStatus');
     const searchStatus = page.querySelector('#psVisibilitySearchStatus');
+    const selectionStatus = page.querySelector('#psVisibilitySelectionStatus');
     const saveStatus = page.querySelector('#psVisibilitySaveStatus');
     const addButton = page.querySelector('#psAddVisibilityRule');
     const mediaTabs = page.querySelectorAll('.ps-type-tab');
+    const selectedItems = new Map();
     let activeMediaKind = 'all';
+    let browseOffset = 0;
+    let browseTotal = 0;
+    let itemRequestId = 0;
 
     LibraryMenu.setTabs('WatchHistory', 4, getTabs);
 
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 4, getTabs);
         loadSettings();
+        loadBrowseItems(false);
     });
 
     mediaTabs.forEach(function (button) {
@@ -51,11 +58,21 @@ export default function (view) {
             });
             if (page.querySelector('#psVisibilitySearch').value.trim().length >= 2) {
                 searchItems();
+            } else {
+                loadBrowseItems(false);
             }
         });
     });
 
     page.querySelector('#psVisibilitySearchButton').addEventListener('click', searchItems);
+    page.querySelector('#psVisibilityBrowseButton').addEventListener('click', function () {
+        page.querySelector('#psVisibilitySearch').value = '';
+        loadBrowseItems(false);
+    });
+    loadMoreButton.addEventListener('click', function () {
+        loadBrowseItems(true);
+    });
+    itemsContainer.addEventListener('change', updateSelectedItem);
     page.querySelector('#psVisibilitySearch').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -67,6 +84,7 @@ export default function (view) {
     });
     page.querySelector('#psVisibilityForm').addEventListener('submit', addRule);
     rulesContainer.addEventListener('click', deleteRule);
+    updateSelectionStatus();
 
     async function loadSettings() {
         rulesStatus.textContent = 'Loading users and rules…';
@@ -146,13 +164,15 @@ export default function (view) {
     async function searchItems() {
         const query = page.querySelector('#psVisibilitySearch').value.trim();
         if (query.length < 2) {
-            searchStatus.textContent = 'Enter at least two characters to search.';
+            searchStatus.textContent = 'Enter at least two characters to search, or choose Browse library.';
             return;
         }
 
+        const requestId = ++itemRequestId;
         const kind = activeMediaKind === 'all' ? '' : activeMediaKind;
         searchStatus.textContent = 'Searching media…';
-        itemSelect.replaceChildren();
+        itemsContainer.replaceChildren();
+        loadMoreButton.hidden = true;
         try {
             const url = new URL(ApiClient.getUrl('ProgressSync/Admin/Visibility/Items'));
             url.searchParams.set('search', query);
@@ -161,33 +181,160 @@ export default function (view) {
             }
 
             const results = await ApiClient.getJSON(url.toString());
-            const fragment = document.createDocumentFragment();
-            const prompt = document.createElement('option');
-            prompt.value = '';
-            prompt.textContent = 'Choose a media item';
-            fragment.appendChild(prompt);
-            results.forEach(function (item) {
-                const option = document.createElement('option');
-                option.value = item.Id;
-                option.textContent = item.Name + ' (' + item.Type + ')';
-                fragment.appendChild(option);
-            });
-            itemSelect.replaceChildren(fragment);
-            window.CustomElements.upgradeSubtree(itemSelect);
+            if (requestId !== itemRequestId) {
+                return;
+            }
+
+            renderItems(results);
             searchStatus.textContent = results.length
-                ? 'Found ' + results.length + ' item' + (results.length === 1 ? '' : 's') + '.'
+                ? 'Found ' + results.length + ' item' + (results.length === 1 ? '' : 's') + '. Check the posters you want.'
                 : 'No matching ' + (kind ? kind : 'media') + ' found.';
         } catch (error) {
+            if (requestId !== itemRequestId) {
+                return;
+            }
+
             searchStatus.textContent = 'Could not search media (' + errorText(error) + ').';
             console.warn('[ProgressSync]', 'could not search media for visibility rules', error);
         }
     }
 
+    async function loadBrowseItems(append) {
+        if (append && loadMoreButton.disabled) {
+            return;
+        }
+
+        const requestId = ++itemRequestId;
+        const startIndex = append ? browseOffset : 0;
+        const kind = activeMediaKind === 'all' ? '' : activeMediaKind;
+        if (!append) {
+            browseOffset = 0;
+            browseTotal = 0;
+            itemsContainer.replaceChildren();
+        }
+
+        loadMoreButton.disabled = true;
+        loadMoreButton.hidden = true;
+        searchStatus.textContent = append ? 'Loading more media…' : 'Loading library posters…';
+        try {
+            const url = new URL(ApiClient.getUrl('ProgressSync/Admin/Visibility/Browse'));
+            url.searchParams.set('startIndex', String(startIndex));
+            if (kind) {
+                url.searchParams.set('kind', kind);
+            }
+
+            const result = await ApiClient.getJSON(url.toString());
+            if (requestId !== itemRequestId) {
+                return;
+            }
+
+            browseOffset = startIndex + result.Items.length;
+            browseTotal = result.TotalCount;
+            renderItems(result.Items, append);
+            searchStatus.textContent = browseTotal
+                ? 'Showing ' + browseOffset + ' of ' + browseTotal + ' items. Check posters to select them.'
+                : 'No media found in this category.';
+            loadMoreButton.hidden = browseOffset >= browseTotal;
+        } catch (error) {
+            if (requestId !== itemRequestId) {
+                return;
+            }
+
+            searchStatus.textContent = 'Could not browse media (' + errorText(error) + ').';
+            loadMoreButton.hidden = !append || browseOffset >= browseTotal;
+            console.warn('[ProgressSync]', 'could not browse media for visibility rules', error);
+        } finally {
+            if (requestId === itemRequestId) {
+                loadMoreButton.disabled = false;
+            }
+        }
+    }
+
+    function renderItems(items, append) {
+        if (!append) {
+            itemsContainer.replaceChildren();
+        }
+
+        const fragment = document.createDocumentFragment();
+        items.forEach(function (item) {
+            fragment.appendChild(createItemCard(item));
+        });
+        itemsContainer.appendChild(fragment);
+    }
+
+    function createItemCard(item) {
+        const card = document.createElement('div');
+        card.className = 'ps-item-card';
+        card.dataset.itemType = item.Type;
+
+        const poster = document.createElement('div');
+        poster.className = 'ps-item-poster';
+        const image = document.createElement('img');
+        image.alt = '';
+        image.loading = 'lazy';
+        image.src = ApiClient.getScaledImageUrl(item.Id, { type: 'Primary', maxWidth: 300, quality: 85 });
+        image.addEventListener('error', function () {
+            const placeholder = document.createElement('span');
+            placeholder.className = 'ps-item-placeholder';
+            placeholder.textContent = item.Type;
+            poster.replaceChildren(placeholder);
+        }, { once: true });
+        poster.appendChild(image);
+
+        const choice = document.createElement('label');
+        choice.className = 'ps-item-choice';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.itemId = item.Id;
+        checkbox.checked = selectedItems.has(item.Id);
+        checkbox.setAttribute('aria-label', 'Select ' + item.Name);
+        const name = document.createElement('span');
+        name.className = 'ps-item-name';
+        name.textContent = item.Name;
+        choice.append(checkbox, name);
+        card.append(poster, choice);
+        return card;
+    }
+
+    function updateSelectedItem(event) {
+        const checkbox = event.target.closest('input[type="checkbox"][data-item-id]');
+        if (!checkbox) {
+            return;
+        }
+
+        const itemId = checkbox.dataset.itemId;
+        if (checkbox.checked) {
+            if (selectedItems.size >= 500) {
+                checkbox.checked = false;
+                saveStatus.textContent = 'Select no more than 500 items per batch.';
+                return;
+            }
+
+            const itemName = checkbox.closest('.ps-item-choice').querySelector('.ps-item-name').textContent;
+            const card = checkbox.closest('.ps-item-card');
+            selectedItems.set(itemId, {
+                Id: itemId,
+                Name: itemName,
+                Type: card.dataset.itemType
+            });
+        } else {
+            selectedItems.delete(itemId);
+        }
+
+        updateSelectionStatus();
+    }
+
+    function updateSelectionStatus() {
+        const count = selectedItems.size;
+        selectionStatus.textContent = count
+            ? count + ' item' + (count === 1 ? '' : 's') + ' selected.'
+            : 'No items selected.';
+    }
+
     async function addRule(event) {
         event.preventDefault();
-        if (!itemSelect.value) {
-            saveStatus.textContent = 'Search for and select a media item.';
-            itemSelect.focus();
+        if (!selectedItems.size) {
+            saveStatus.textContent = 'Browse or search, then check at least one media item.';
             return;
         }
 
@@ -200,7 +347,7 @@ export default function (view) {
         }
 
         const body = {
-            ItemId: itemSelect.value,
+            ItemIds: Array.from(selectedItems.keys()),
             UserId: usersSelect.value === ALL_USERS_VALUE ? null : usersSelect.value,
             VisibleFromMonth: scheduled ? Number(from.slice(5, 7)) : null,
             VisibleFromDay: scheduled ? Number(from.slice(8, 10)) : null,
@@ -208,22 +355,28 @@ export default function (view) {
             VisibleThroughDay: scheduled ? Number(through.slice(8, 10)) : null
         };
         addButton.disabled = true;
-        saveStatus.textContent = 'Applying visibility rule…';
+        saveStatus.textContent = 'Applying visibility rules…';
         try {
             await ApiClient.ajax({
                 type: 'POST',
-                url: ApiClient.getUrl('ProgressSync/Admin/Visibility'),
+                url: ApiClient.getUrl('ProgressSync/Admin/Visibility/Bulk'),
                 data: JSON.stringify(body),
                 contentType: 'application/json'
             });
-            saveStatus.textContent = 'Visibility rule added and applied.';
+            const addedCount = selectedItems.size;
+            selectedItems.clear();
+            itemsContainer.querySelectorAll('input[data-item-id]').forEach(function (checkbox) {
+                checkbox.checked = false;
+            });
+            updateSelectionStatus();
+            saveStatus.textContent = 'Added visibility rules for ' + addedCount + ' item' + (addedCount === 1 ? '' : 's') + '.';
             page.querySelector('#psVisibilityScheduled').checked = false;
             page.querySelector('#psVisibilityDates').hidden = true;
             page.querySelector('#psVisibilityFrom').value = '';
             page.querySelector('#psVisibilityThrough').value = '';
             await loadSettings();
         } catch (error) {
-            saveStatus.textContent = 'Could not apply visibility rule (' + errorText(error) + ').';
+            saveStatus.textContent = 'Could not apply visibility rules (' + errorText(error) + ').';
             console.warn('[ProgressSync]', 'could not add media visibility rule', error);
         } finally {
             addButton.disabled = false;

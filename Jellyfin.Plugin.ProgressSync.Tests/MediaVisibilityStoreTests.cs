@@ -42,6 +42,32 @@ public sealed class MediaVisibilityStoreTests : IDisposable
         Assert.Null(store.Remove(rule.Id));
     }
 
+    [Fact]
+    public void AddRange_PersistsAllRulesTogether()
+    {
+        var path = Path.Combine(_dir, "media-visibility-bulk.json");
+        var store = NewStore(path);
+        var firstRule = CreateRule();
+        var secondRule = CreateRule();
+
+        store.AddRange([firstRule, secondRule]);
+
+        Assert.Equal([firstRule, secondRule], NewStore(path).Rules);
+    }
+
+    private static MediaVisibilityRule CreateRule()
+    {
+        return new MediaVisibilityRule(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            DateTime.UtcNow);
+    }
+
     private static MediaVisibilityStore NewStore(string path)
     {
         return new MediaVisibilityStore(path, NullLogger<MediaVisibilityStore>.Instance);

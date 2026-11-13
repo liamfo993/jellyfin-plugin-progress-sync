@@ -100,6 +100,40 @@ public sealed class MediaVisibilityController : ControllerBase
         return items;
     }
 
+    /// <summary>Browses a page of media items that can be hidden.</summary>
+    /// <param name="kind">Optional media type filter.</param>
+    /// <param name="startIndex">The zero-based index of the first item.</param>
+    /// <returns>A page of items and the matching total.</returns>
+    [HttpGet("Browse")]
+    [ProducesResponseType(typeof(AdminItemBrowseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<AdminItemBrowseResponse> BrowseItems(
+        [FromQuery] string? kind = null,
+        [FromQuery] int startIndex = 0)
+    {
+        if (startIndex < 0)
+        {
+            return BadRequest("The start index cannot be negative.");
+        }
+
+        const int pageSize = 50;
+        var result = _libraryManager.GetItemsResult(new InternalItemsQuery
+        {
+            Recursive = true,
+            StartIndex = startIndex,
+            Limit = pageSize,
+            IncludeItemTypes = ResolveSearchKinds(kind).ToArray(),
+            EnableTotalRecordCount = true,
+            IsVirtualItem = false,
+            OrderBy = [(ItemSortBy.SortName, SortOrder.Ascending)]
+        });
+        var items = result.Items
+            .Where(IsSupported)
+            .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
+            .ToList();
+        return new AdminItemBrowseResponse(items, result.TotalRecordCount);
+    }
+
     /// <summary>Adds a media visibility rule and applies it to Jellyfin's user policies.</summary>
     /// <param name="request">The item, target user, and optional annual visible window.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -141,6 +175,58 @@ public sealed class MediaVisibilityController : ControllerBase
         _store.Add(rule);
         await _service.ApplyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         return ToDto(rule);
+    }
+
+    /// <summary>Adds visibility rules for several media items.</summary>
+    /// <param name="request">The selected items, target user, and optional annual visible window.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The created rules.</returns>
+    [HttpPost("Bulk")]
+    [ProducesResponseType(typeof(IReadOnlyList<MediaVisibilityRuleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<MediaVisibilityRuleDto>>> AddRules(
+        [FromBody] MediaVisibilityBulkRuleRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request?.ItemIds is not { Count: > 0 and <= 500 } itemIds
+            || itemIds.Any(itemId => itemId == Guid.Empty)
+            || request.UserId == Guid.Empty)
+        {
+            return BadRequest("Choose between 1 and 500 media items and a valid target user.");
+        }
+
+        if (!IsValidWindow(request))
+        {
+            return BadRequest("Provide either no schedule or valid start and end month/day values.");
+        }
+
+        var distinctItemIds = itemIds.Distinct().ToArray();
+        var items = distinctItemIds
+            .Select(itemId => _libraryManager.GetItemById<BaseItem>(itemId))
+            .ToArray();
+        var user = request.UserId is { } userId ? GetEnabledUser(userId) : null;
+        if (items.Any(item => item is null || !IsSupported(item))
+            || (request.UserId is not null && user is null))
+        {
+            return NotFound();
+        }
+
+        var createdUtc = DateTime.UtcNow;
+        var rules = items
+            .Select(item => new MediaVisibilityRule(
+                Guid.NewGuid(),
+                item!.Id,
+                request.UserId,
+                request.VisibleFromMonth,
+                request.VisibleFromDay,
+                request.VisibleThroughMonth,
+                request.VisibleThroughDay,
+                createdUtc))
+            .ToArray();
+        _store.AddRange(rules);
+        await _service.ApplyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return rules.Select(ToDto).ToList();
     }
 
     /// <summary>Removes a media visibility rule and its managed tags.</summary>
@@ -223,12 +309,34 @@ public sealed class MediaVisibilityController : ControllerBase
 
     private static bool IsValidWindow(MediaVisibilityRuleRequest request)
     {
-        var values = new[]
-        {
+        return IsValidWindow(
             request.VisibleFromMonth,
             request.VisibleFromDay,
             request.VisibleThroughMonth,
-            request.VisibleThroughDay
+            request.VisibleThroughDay);
+    }
+
+    private static bool IsValidWindow(MediaVisibilityBulkRuleRequest request)
+    {
+        return IsValidWindow(
+            request.VisibleFromMonth,
+            request.VisibleFromDay,
+            request.VisibleThroughMonth,
+            request.VisibleThroughDay);
+    }
+
+    private static bool IsValidWindow(
+        int? visibleFromMonth,
+        int? visibleFromDay,
+        int? visibleThroughMonth,
+        int? visibleThroughDay)
+    {
+        var values = new[]
+        {
+            visibleFromMonth,
+            visibleFromDay,
+            visibleThroughMonth,
+            visibleThroughDay
         };
         if (values.All(value => value is null))
         {
@@ -236,8 +344,8 @@ public sealed class MediaVisibilityController : ControllerBase
         }
 
         return values.All(value => value is not null)
-            && IsValidMonthDay(request.VisibleFromMonth!.Value, request.VisibleFromDay!.Value)
-            && IsValidMonthDay(request.VisibleThroughMonth!.Value, request.VisibleThroughDay!.Value);
+            && IsValidMonthDay(visibleFromMonth!.Value, visibleFromDay!.Value)
+            && IsValidMonthDay(visibleThroughMonth!.Value, visibleThroughDay!.Value);
     }
 
     private static bool IsValidMonthDay(int month, int day)

@@ -57,6 +57,23 @@ public sealed class MediaVisibilityStore
         }
     }
 
+    /// <summary>Adds and persists several rules together.</summary>
+    /// <param name="rules">The rules to add.</param>
+    public void AddRange(IEnumerable<MediaVisibilityRule> rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        var newRules = rules.ToArray();
+        if (newRules.Length == 0)
+        {
+            return;
+        }
+
+        lock (_writeLock)
+        {
+            Save(_rules.Concat(newRules).ToArray());
+        }
+    }
+
     /// <summary>Removes and persists a rule.</summary>
     /// <param name="ruleId">The rule id.</param>
     /// <returns>The removed rule, or <see langword="null"/> when it did not exist.</returns>
