@@ -37,7 +37,7 @@ export default function (view) {
     const selectedItems = new Map();
     let activeMediaKind = 'all';
     let browseOffset = 0;
-    let browseTotal = 0;
+    let browseHasMore = false;
     let itemRequestId = 0;
 
     LibraryMenu.setTabs('WatchHistory', 4, getTabs);
@@ -209,7 +209,7 @@ export default function (view) {
         const kind = activeMediaKind === 'all' ? '' : activeMediaKind;
         if (!append) {
             browseOffset = 0;
-            browseTotal = 0;
+            browseHasMore = false;
             itemsContainer.replaceChildren();
         }
 
@@ -229,19 +229,19 @@ export default function (view) {
             }
 
             browseOffset = startIndex + result.Items.length;
-            browseTotal = result.TotalCount;
+            browseHasMore = result.HasMore;
             renderItems(result.Items, append);
-            searchStatus.textContent = browseTotal
-                ? 'Showing ' + browseOffset + ' of ' + browseTotal + ' items. Check posters to select them.'
+            searchStatus.textContent = browseOffset
+                ? 'Showing ' + browseOffset + ' items' + (browseHasMore ? ' so far. Load more to continue.' : '. Check posters to select them.')
                 : 'No media found in this category.';
-            loadMoreButton.hidden = browseOffset >= browseTotal;
+            loadMoreButton.hidden = !browseHasMore;
         } catch (error) {
             if (requestId !== itemRequestId) {
                 return;
             }
 
             searchStatus.textContent = 'Could not browse media (' + errorText(error) + ').';
-            loadMoreButton.hidden = !append || browseOffset >= browseTotal;
+            loadMoreButton.hidden = !append || !browseHasMore;
             console.warn('[ProgressSync]', 'could not browse media for visibility rules', error);
         } finally {
             if (requestId === itemRequestId) {

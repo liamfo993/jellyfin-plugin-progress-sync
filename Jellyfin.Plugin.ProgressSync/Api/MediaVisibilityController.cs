@@ -92,7 +92,9 @@ public sealed class MediaVisibilityController : ControllerBase
             SearchTerm = search.Trim(),
             Recursive = true,
             Limit = 50,
-            IncludeItemTypes = includeTypes.ToArray()
+            IncludeItemTypes = includeTypes.ToArray(),
+            EnableTotalRecordCount = false,
+            IsVirtualItem = false
         }).Items
             .Where(IsSupported)
             .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
@@ -121,17 +123,19 @@ public sealed class MediaVisibilityController : ControllerBase
         {
             Recursive = true,
             StartIndex = startIndex,
-            Limit = pageSize,
+            Limit = pageSize + 1,
             IncludeItemTypes = ResolveSearchKinds(kind).ToArray(),
-            EnableTotalRecordCount = true,
+            EnableTotalRecordCount = false,
             IsVirtualItem = false,
             OrderBy = [(ItemSortBy.SortName, SortOrder.Ascending)]
         });
-        var items = result.Items
+        var supportedItems = result.Items
             .Where(IsSupported)
             .Select(item => new AdminItemDto(item.Id, item.Name, item.GetType().Name))
             .ToList();
-        return new AdminItemBrowseResponse(items, result.TotalRecordCount);
+        var hasMore = supportedItems.Count > pageSize;
+        var items = supportedItems.Take(pageSize).ToList();
+        return new AdminItemBrowseResponse(items, hasMore);
     }
 
     /// <summary>Adds a media visibility rule and applies it to Jellyfin's user policies.</summary>
