@@ -76,7 +76,7 @@ class Element {
     }
 }
 
-function setup(compactLayout) {
+function setup(compactLayout, getJSON) {
     const dialog = new Element();
     const dialogElements = new Map([
         ['.btnCancel', new Element('button')],
@@ -110,6 +110,9 @@ function setup(compactLayout) {
     const apiClient = {
         getUrl: route => route,
         async getJSON(route) {
+            if (getJSON) {
+                return getJSON(route);
+            }
             if (route.endsWith('/RecentlyWatched/Users')) {
                 return [{ Id: 'alice', Name: 'Alice' }];
             }
@@ -152,6 +155,7 @@ test('history tabs switch panels and hidden panels have an explicit display rule
     const { dialog, dialogElements } = setup(false);
     await new Promise(resolve => setImmediate(resolve));
     const card = dialogElements.get('.ps-wh-users').children[0];
+    card.open = true;
     card.listeners.toggle();
     await new Promise(resolve => setImmediate(resolve));
 
@@ -167,4 +171,88 @@ test('history tabs switch panels and hidden panels have an explicit display rule
 
     assert.match(source, /\.ps-watch-history-dialog \[hidden\]\{display:none!important\}/);
     assert.match(dashboardSource, /viewConfig\.key === selectedView\.key/);
+});
+
+test('watched tabs render without waiting for in-progress history', async () => {
+    let finishInProgress;
+    const pending = new Promise(resolve => { finishInProgress = resolve; });
+    const { dialogElements } = setup(false, route => {
+        if (route.endsWith('/RecentlyWatched/Users')) {
+            return [{ Id: 'alice', Name: 'Alice' }];
+        }
+        return route.includes('/InProgress/') ? pending : [];
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    const card = dialogElements.get('.ps-wh-users').children[0];
+    card.open = true;
+    card.listeners.toggle();
+    await new Promise(resolve => setImmediate(resolve));
+    const content = card.children[1];
+    assert.equal(content.children[2].children[0].textContent, 'No recent movies.');
+    assert.equal(content.children[4].children[0].textContent, 'Loading…');
+    finishInProgress([]);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(content.children[4].children[0].textContent, 'No in-progress movies.');
+});
+
+test('dashboard renders watched history before in-progress completes', async () => {
+    let finishInProgress;
+    const pending = new Promise(resolve => { finishInProgress = resolve; });
+    const elements = new Map([
+        '#psHistoryUsers', '#psHistoryStatus', '#psHistoryUserCount', '#psShowWatchHistoryMenu',
+        '#psWatchHistoryMenuStatus', '#psSaveWatchHistoryMenu', '#psVisibilityUsers',
+        '#psVisibilityStatus', '#psSaveVisibility', '#psRefreshHistory'
+    ].map(id => [id, new Element()]));
+    const page = { querySelector: id => elements.get(id) };
+    const view = new Element();
+    view.querySelector = () => page;
+    const context = {
+        document: {
+            createElement: tagName => new Element(tagName),
+            createDocumentFragment() {
+                const fragment = new Element();
+                fragment.isFragment = true;
+                return fragment;
+            }
+        },
+        LibraryMenu: { setTabs() {} },
+        ApiClient: {
+            getUrl: route => route,
+            async getJSON(route) {
+                if (route.endsWith('/RecentlyWatched/Users')) {
+                    return [{ Id: 'alice', Name: 'Alice' }];
+                }
+                if (route.includes('/InProgress/')) {
+                    return pending;
+                }
+                if (route.endsWith('/WatchHistoryVisibility')) {
+                    return { Users: [], Rules: [] };
+                }
+                if (route.endsWith('/WatchHistoryMenu')) {
+                    return { Enabled: false };
+                }
+                return [];
+            }
+        },
+        console,
+        Date,
+        Intl,
+        Map,
+        Set,
+        Promise
+    };
+    vm.runInNewContext(dashboardSource.replace('export default function (view)', 'globalThis.init = function (view)'), context);
+    context.init(view);
+    view.listeners.viewshow();
+    await new Promise(resolve => setImmediate(resolve));
+    const card = elements.get('#psHistoryUsers').children[0];
+    card.open = true;
+    card.listeners.toggle();
+    await new Promise(resolve => setImmediate(resolve));
+    const content = card.children[1];
+    assert.equal(content.children[2].children[0].textContent, 'No recent movies.');
+    assert.equal(content.children[4].children[0].textContent, 'Loading…');
+    finishInProgress([]);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(content.children[4].children[0].textContent, 'No in-progress movies.');
 });

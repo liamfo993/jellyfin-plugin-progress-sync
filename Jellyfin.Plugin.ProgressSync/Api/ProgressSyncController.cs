@@ -270,88 +270,86 @@ public sealed class ProgressSyncController : ControllerBase
     private IReadOnlyList<RecentlyWatchedItemDto> GetUserHistory(User user, User caller, bool inProgress)
     {
         var items = new List<RecentlyWatchedItemDto>(RecentlyWatchedPerTypeLimit * 2);
-        var movieCount = 0;
-        var episodeCount = 0;
-        var startIndex = 0;
-        while (movieCount < RecentlyWatchedPerTypeLimit || episodeCount < RecentlyWatchedPerTypeLimit)
+        var visibleSeries = new Dictionary<Guid, BaseItem?>();
+        foreach (var itemType in new[] { BaseItemKind.Movie, BaseItemKind.Episode })
         {
-            var result = _libraryManager.GetItemsResult(new InternalItemsQuery(user)
+            var startIndex = 0;
+            var count = 0;
+            while (count < RecentlyWatchedPerTypeLimit)
             {
-                Recursive = true,
-                Limit = RecentlyWatchedPerTypeLimit,
-                StartIndex = startIndex,
-                IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Episode],
-                IsPlayed = !inProgress,
-                IsVirtualItem = false,
-                EnableTotalRecordCount = false,
-                OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)]
-            });
-            if (result.Items.Count == 0)
-            {
-                break;
-            }
-
-            startIndex += result.Items.Count;
-            var playedItems = result.Items.Where(item => item is Movie or Episode).ToList();
-            var userData = _userDataManager.GetUserDataBatch(playedItems, user);
-            foreach (var item in playedItems)
-            {
-                if ((item is Movie && movieCount >= RecentlyWatchedPerTypeLimit)
-                    || (item is Episode && episodeCount >= RecentlyWatchedPerTypeLimit))
+                var result = _libraryManager.GetItemsResult(new InternalItemsQuery(user)
                 {
-                    continue;
+                    Recursive = true,
+                    Limit = RecentlyWatchedPerTypeLimit,
+                    StartIndex = startIndex,
+                    IncludeItemTypes = [itemType],
+                    IsPlayed = !inProgress,
+                    IsVirtualItem = false,
+                    EnableTotalRecordCount = false,
+                    OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)]
+                });
+                if (result.Items.Count == 0)
+                {
+                    break;
                 }
 
-                var data = userData.GetValueOrDefault(item.Id);
-                var lastPlayedDate = data?.LastPlayedDate;
-                var playbackPositionTicks = data?.PlaybackPositionTicks ?? 0;
-                if (lastPlayedDate is null
-                    || (inProgress && (data?.Played != false || playbackPositionTicks <= 0))
-                    || (!inProgress && data?.Played != true)
-                    || GetVisibleItem(item.Id, caller) is null)
+                startIndex += result.Items.Count;
+                var playedItems = result.Items.Where(item => item is Movie or Episode).ToList();
+                var userData = _userDataManager.GetUserDataBatch(playedItems, user);
+                foreach (var item in playedItems)
                 {
-                    continue;
+                    if (count >= RecentlyWatchedPerTypeLimit)
+                    {
+                        break;
+                    }
+
+                    var data = userData.GetValueOrDefault(item.Id);
+                    var lastPlayedDate = data?.LastPlayedDate;
+                    var playbackPositionTicks = data?.PlaybackPositionTicks ?? 0;
+                    if (lastPlayedDate is null
+                        || (inProgress && (data?.Played != false || playbackPositionTicks <= 0))
+                        || (!inProgress && data?.Played != true)
+                        || GetVisibleItem(item.Id, caller) is null)
+                    {
+                        continue;
+                    }
+
+                    var itemName = item.Name;
+                    Guid? seriesId = null;
+                    if (item is Episode episode)
+                    {
+                        if (episode.SeriesId != Guid.Empty && !visibleSeries.ContainsKey(episode.SeriesId))
+                        {
+                            visibleSeries[episode.SeriesId] = GetVisibleItem(episode.SeriesId, caller);
+                        }
+
+                        var series = visibleSeries.GetValueOrDefault(episode.SeriesId);
+                        itemName = FormatEpisodeName(episode, series?.Name);
+                        seriesId = series?.Id;
+                    }
+
+                    int? progressPercent = inProgress && item.RunTimeTicks is > 0
+                        ? Math.Clamp((int)Math.Round((double)playbackPositionTicks / item.RunTimeTicks.Value * 100), 0, 99)
+                        : null;
+                    items.Add(new RecentlyWatchedItemDto(
+                        item.Id,
+                        itemName,
+                        item is Episode ? "Episode" : "Movie",
+                        lastPlayedDate.Value,
+                        seriesId,
+                        progressPercent,
+                        inProgress));
+                    count++;
                 }
 
-                var itemName = item.Name;
-                Guid? seriesId = null;
-                if (item is Episode episode)
+                if (result.Items.Count < RecentlyWatchedPerTypeLimit)
                 {
-                    var visibleSeries = episode.SeriesId == Guid.Empty
-                        ? null
-                        : GetVisibleItem(episode.SeriesId, caller);
-                    itemName = FormatEpisodeName(episode, visibleSeries?.Name);
-                    seriesId = visibleSeries?.Id;
+                    break;
                 }
-
-                int? progressPercent = inProgress && item.RunTimeTicks is > 0
-                    ? Math.Clamp((int)Math.Round((double)playbackPositionTicks / item.RunTimeTicks.Value * 100), 0, 99)
-                    : null;
-                items.Add(new RecentlyWatchedItemDto(
-                    item.Id,
-                    itemName,
-                    item is Episode ? "Episode" : "Movie",
-                    lastPlayedDate.Value,
-                    seriesId,
-                    progressPercent,
-                    inProgress));
-                if (item is Movie)
-                {
-                    movieCount++;
-                }
-                else
-                {
-                    episodeCount++;
-                }
-            }
-
-            if (result.Items.Count < RecentlyWatchedPerTypeLimit)
-            {
-                break;
             }
         }
 
-        return items;
+        return items.OrderByDescending(item => item.LastPlayedDate).ToList();
     }
 
     private static string FormatEpisodeName(Episode episode, string? seriesName)

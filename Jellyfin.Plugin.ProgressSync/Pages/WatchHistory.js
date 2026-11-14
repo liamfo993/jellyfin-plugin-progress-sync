@@ -299,53 +299,51 @@ export default function (view) {
 
         try {
             const encodedUserId = encodeURIComponent(user.Id);
-            const [watchedItems, inProgressItems] = await Promise.all([
-                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/RecentlyWatched/Users/' + encodedUserId))
-                    .then(items => ({ items, error: null }), error => ({ items: null, error })),
-                ApiClient.getJSON(ApiClient.getUrl('ProgressSync/InProgress/Users/' + encodedUserId))
-                    .then(items => ({ items, error: null }), error => ({ items: null, error }))
-            ]);
+            let totalItems = 0;
+            let allLoaded = true;
+            async function loadGroup(inProgress) {
+                const groupViews = historyViews.filter(viewConfig => viewConfig.inProgress === inProgress);
+                try {
+                    const route = inProgress ? 'ProgressSync/InProgress/Users/' : 'ProgressSync/RecentlyWatched/Users/';
+                    const items = await ApiClient.getJSON(ApiClient.getUrl(route + encodedUserId));
+                    if (!card.isConnected) {
+                        return;
+                    }
+                    if (!Array.isArray(items)) {
+                        throw new Error('Invalid watch history response');
+                    }
+                    let groupCount = 0;
+                    for (const viewConfig of groupViews) {
+                        const matchingItems = items.filter(item => item.ItemType === viewConfig.itemType);
+                        groupCount += matchingItems.length;
+                        populateHistoryGrid(viewConfig.grid, matchingItems, inProgress
+                            ? 'No in-progress ' + viewConfig.itemType.toLowerCase() + 's.'
+                            : 'No recent ' + viewConfig.itemType.toLowerCase() + 's.');
+                        viewConfig.tab.textContent = viewConfig.label + ' (' + matchingItems.length + ')';
+                    }
+                    totalItems += groupCount;
+                    if (groupCount > 0) {
+                        import(ApiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                            .then(module => module.default(ApiClient, groupViews.map(viewConfig => viewConfig.grid)))
+                            .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+                    }
+                } catch (error) {
+                    allLoaded = false;
+                    for (const viewConfig of groupViews) {
+                        populateHistoryGrid(viewConfig.grid, [], 'Could not load this history (' + errorText(error) + ').');
+                        viewConfig.tab.textContent = viewConfig.label;
+                    }
+                    console.warn('[ProgressSync]', 'could not load watch history', error);
+                }
+            }
+
+            await Promise.all([loadGroup(false), loadGroup(true)]);
             if (!card.isConnected) {
                 return;
             }
-
-            const results = new Map([
-                [false, watchedItems],
-                [true, inProgressItems]
-            ]);
-            let totalItems = 0;
-            let allLoaded = true;
-            for (const viewConfig of historyViews) {
-                const result = results.get(viewConfig.inProgress);
-                if (result.error || !Array.isArray(result.items)) {
-                    const error = result.error || new Error('Invalid watch history response');
-                    allLoaded = false;
-                    populateHistoryGrid(
-                        viewConfig.grid,
-                        [],
-                        'Could not load this history (' + errorText(error) + ').');
-                    console.warn('[ProgressSync]', 'could not load watch history', error);
-                    viewConfig.tab.textContent = viewConfig.label;
-                    continue;
-                }
-
-                const items = result.items.filter(item => item.ItemType === viewConfig.itemType);
-                totalItems += items.length;
-                populateHistoryGrid(
-                    viewConfig.grid,
-                    items,
-                    viewConfig.inProgress
-                        ? 'No in-progress ' + viewConfig.itemType.toLowerCase() + 's.'
-                        : 'No recent ' + viewConfig.itemType.toLowerCase() + 's.');
-                viewConfig.tab.textContent = viewConfig.label + ' (' + items.length + ')';
-            }
-
-            hint.textContent = totalItems + ' recent and in-progress items';
-            if (totalItems > 0) {
-                import(ApiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
-                    .then(module => module.default(ApiClient, historyViews.map(viewConfig => viewConfig.grid)))
-                    .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
-            }
+            hint.textContent = allLoaded
+                ? totalItems + ' recent and in-progress items'
+                : 'Some history could not be loaded';
             if (allLoaded) {
                 card.dataset.loaded = 'true';
             }

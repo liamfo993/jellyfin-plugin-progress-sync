@@ -163,46 +163,50 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         }
 
         const userId = encodeURIComponent(user.Id);
-        const [watched, inProgress] = await Promise.all([
-            apiClient.getJSON(apiClient.getUrl('ProgressSync/RecentlyWatched/Users/' + userId))
-                .then(items => ({ items, error: null }), error => ({ items: null, error })),
-            apiClient.getJSON(apiClient.getUrl('ProgressSync/InProgress/Users/' + userId))
-                .then(items => ({ items, error: null }), error => ({ items: null, error }))
-        ]);
+        let totalItems = 0;
+        let allLoaded = true;
+        async function loadGroup(inProgress) {
+            const groupViews = views.filter(view => view.inProgress === inProgress);
+            try {
+                const route = inProgress ? 'ProgressSync/InProgress/Users/' : 'ProgressSync/RecentlyWatched/Users/';
+                const items = await apiClient.getJSON(apiClient.getUrl(route + userId));
+                if (!card.isConnected) {
+                    return;
+                }
+                if (!Array.isArray(items)) {
+                    throw new Error('Invalid watch history response');
+                }
+                let groupCount = 0;
+                for (const view of groupViews) {
+                    const matchingItems = items.filter(item => item.ItemType === view.itemType);
+                    groupCount += matchingItems.length;
+                    populateGrid(view.grid, matchingItems, inProgress
+                        ? 'No in-progress ' + view.itemType.toLowerCase() + 's.'
+                        : 'No recent ' + view.itemType.toLowerCase() + 's.');
+                    view.tab.textContent = view.label + ' (' + matchingItems.length + ')';
+                }
+                totalItems += groupCount;
+                if (groupCount > 0) {
+                    import(apiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                        .then(module => module.default(apiClient, groupViews.map(view => view.grid)))
+                        .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+                }
+            } catch (error) {
+                allLoaded = false;
+                for (const view of groupViews) {
+                    populateGrid(view.grid, [], 'Could not load this history (' + errorText(error) + ').');
+                }
+                console.warn('[ProgressSync]', 'could not load Watch History', error);
+            }
+        }
+
+        await Promise.all([loadGroup(false), loadGroup(true)]);
         if (!card.isConnected) {
             return;
         }
-
-        const results = new Map([[false, watched], [true, inProgress]]);
-        let totalItems = 0;
-        let allLoaded = true;
-        for (const view of views) {
-            const result = results.get(view.inProgress);
-            if (result.error || !Array.isArray(result.items)) {
-                const error = result.error || new Error('Invalid watch history response');
-                allLoaded = false;
-                populateGrid(view.grid, [], 'Could not load this history (' + errorText(error) + ').');
-                console.warn('[ProgressSync]', 'could not load Watch History', error);
-                continue;
-            }
-
-            const items = result.items.filter(item => item.ItemType === view.itemType);
-            totalItems += items.length;
-            populateGrid(
-                view.grid,
-                items,
-                view.inProgress
-                    ? 'No in-progress ' + view.itemType.toLowerCase() + 's.'
-                    : 'No recent ' + view.itemType.toLowerCase() + 's.');
-            view.tab.textContent = view.label + ' (' + items.length + ')';
-        }
-
-        hint.textContent = totalItems + ' recent and in-progress items';
-        if (totalItems > 0) {
-            import(apiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
-                .then(module => module.default(apiClient, views.map(view => view.grid)))
-                .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
-        }
+        hint.textContent = allLoaded
+            ? totalItems + ' recent and in-progress items'
+            : 'Some history could not be loaded';
         if (allLoaded) {
             card.dataset.loaded = 'true';
         }

@@ -438,6 +438,57 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
+    public void GetRecentlyWatched_QueriesEachTypeWithoutPagingThroughOtherTypes()
+    {
+        var movies = Enumerable.Range(0, 100)
+            .Select(index => (BaseItem)_server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Movie " + index }))
+            .ToList();
+        _server.RecentItems[_alice.Id] = movies;
+        foreach (var movie in movies)
+        {
+            _server.Data[(_alice.Id, movie.Id)] = new UserItemData
+            {
+                Key = "key",
+                Played = true,
+                LastPlayedDate = DateTime.UtcNow
+            };
+        }
+
+        var result = As(_alice).GetUserRecentlyWatched(_alice.Id).Value!;
+
+        Assert.Equal(25, result.Count);
+        _server.Library.Verify(m => m.GetItemsResult(It.Is<InternalItemsQuery>(query =>
+            query.IncludeItemTypes.Length == 1 && query.StartIndex == 0)), Times.Exactly(2));
+        _server.Library.Verify(m => m.GetItemsResult(It.Is<InternalItemsQuery>(query =>
+            query.StartIndex > 0)), Times.Never);
+    }
+
+    [Fact]
+    public void GetRecentlyWatched_ContinuesPastInaccessibleItemsForEachType()
+    {
+        var movies = Enumerable.Range(0, 30)
+            .Select(index => _server.AddItem(new Movie { Id = Guid.NewGuid(), Name = "Movie " + index }))
+            .ToList();
+        _server.RecentItems[_alice.Id] = movies.Cast<BaseItem>().ToList();
+        for (var index = 0; index < movies.Count; index++)
+        {
+            _server.Data[(_alice.Id, movies[index].Id)] = new UserItemData
+            {
+                Key = "key",
+                Played = true,
+                LastPlayedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(index)
+            };
+        }
+        _server.Hidden.Add((_bob.Id, movies[^1].Id));
+
+        var result = As(_bob).GetUserRecentlyWatched(_alice.Id).Value!;
+
+        Assert.Equal(25, result.Count);
+        Assert.Equal(movies[28].Id, result[0].ItemId);
+        Assert.Equal(movies[4].Id, result[^1].ItemId);
+    }
+
+    [Fact]
     public void GetRecentlyWatched_ReturnsTwentyFiveMostRecentMoviesAndEpisodes()
     {
         var movies = Enumerable.Range(0, 30)
