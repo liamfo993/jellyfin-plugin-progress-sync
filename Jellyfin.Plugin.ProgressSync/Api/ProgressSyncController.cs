@@ -35,6 +35,7 @@ public sealed class ProgressSyncController : ControllerBase
     // Jellyfin.Api.Constants.InternalClaimTypes.UserId; that assembly is not available to plugins.
     private const string UserIdClaimType = "Jellyfin-UserId";
     private const string ClientScriptResource = "Jellyfin.Plugin.ProgressSync.Web.progressSync.js";
+    private const string WatchHistoryMenuScriptResource = "Jellyfin.Plugin.ProgressSync.Web.watchHistoryMenu.js";
 
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -46,6 +47,7 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly PushoverNotificationStore _pushoverSettings;
     private readonly PushoverNotificationService _pushoverService;
     private readonly WebInjectionStatus _injectionStatus;
+    private readonly WatchHistoryMenuStore _watchHistoryMenu;
     private readonly ILogger<ProgressSyncController> _logger;
 
     /// <summary>
@@ -61,6 +63,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="pushoverSettings">The Pushover notification settings.</param>
     /// <param name="pushoverService">The Pushover notification service.</param>
     /// <param name="injectionStatus">The web client integration status.</param>
+    /// <param name="watchHistoryMenu">Whether Watch History is shown in Jellyfin's user menu.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{ProgressSyncController}"/> interface.</param>
     public ProgressSyncController(
         ILibraryManager libraryManager,
@@ -73,6 +76,7 @@ public sealed class ProgressSyncController : ControllerBase
         PushoverNotificationStore pushoverSettings,
         PushoverNotificationService pushoverService,
         WebInjectionStatus injectionStatus,
+        WatchHistoryMenuStore watchHistoryMenu,
         ILogger<ProgressSyncController> logger)
     {
         _libraryManager = libraryManager;
@@ -85,6 +89,7 @@ public sealed class ProgressSyncController : ControllerBase
         _pushoverSettings = pushoverSettings;
         _pushoverService = pushoverService;
         _injectionStatus = injectionStatus;
+        _watchHistoryMenu = watchHistoryMenu;
         _logger = logger;
     }
 
@@ -550,6 +555,62 @@ public sealed class ProgressSyncController : ControllerBase
             ? "public, max-age=31536000, immutable"
             : "no-cache";
         return File(stream, "application/javascript; charset=utf-8");
+    }
+
+    /// <summary>
+    /// Gets the public menu visibility setting.
+    /// </summary>
+    /// <returns>The current menu visibility setting.</returns>
+    [HttpGet("WatchHistoryMenu")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<WatchHistoryMenuSettings> GetWatchHistoryMenuSettings()
+    {
+        return _watchHistoryMenu.Current;
+    }
+
+    /// <summary>
+    /// Serves the user-facing Watch History dialog script.
+    /// </summary>
+    /// <param name="v">Script version from the injected URL.</param>
+    /// <response code="200">Script returned.</response>
+    /// <returns>The script.</returns>
+    [HttpGet("WatchHistoryMenuScript")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetWatchHistoryMenuScript([FromQuery] string? v)
+    {
+        var stream = typeof(ProgressSyncController).Assembly.GetManifestResourceStream(WatchHistoryMenuScriptResource);
+        if (stream is null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = string.Equals(v, IndexTransformer.ScriptVersion, StringComparison.Ordinal)
+            ? "public, max-age=31536000, immutable"
+            : "no-cache";
+        return File(stream, "application/javascript; charset=utf-8");
+    }
+
+    /// <summary>
+    /// Updates whether Watch History is shown in Jellyfin's user menu.
+    /// </summary>
+    /// <param name="settings">The menu visibility setting.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/WatchHistoryMenu")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateWatchHistoryMenuSettings([FromBody] WatchHistoryMenuSettings? settings)
+    {
+        if (settings is null)
+        {
+            return BadRequest("Settings are required.");
+        }
+
+        _watchHistoryMenu.Save(settings);
+        _logger.LogInformation("Progress Sync: administrator {State} the Watch History user-menu link", settings.Enabled ? "enabled" : "disabled");
+        return NoContent();
     }
 
     /// <summary>

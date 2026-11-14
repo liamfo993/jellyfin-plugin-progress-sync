@@ -17,15 +17,58 @@ export default function (view) {
     const usersContainer = page.querySelector('#psHistoryUsers');
     const status = page.querySelector('#psHistoryStatus');
     const userCount = page.querySelector('#psHistoryUserCount');
+    const menuEnabled = page.querySelector('#psShowWatchHistoryMenu');
+    const menuStatus = page.querySelector('#psWatchHistoryMenuStatus');
+    const saveMenuButton = page.querySelector('#psSaveWatchHistoryMenu');
 
     LibraryMenu.setTabs('WatchHistory', 0, getTabs);
 
     view.addEventListener('viewshow', function () {
         LibraryMenu.setTabs('WatchHistory', 0, getTabs);
         loadUsers();
+        loadMenuSettings();
     });
 
     page.querySelector('#psRefreshHistory').addEventListener('click', loadUsers);
+    saveMenuButton.addEventListener('click', saveMenuSettings);
+
+    async function loadMenuSettings() {
+        menuStatus.textContent = 'Loading user-menu settings…';
+        try {
+            const settings = await ApiClient.getJSON(ApiClient.getUrl('ProgressSync/WatchHistoryMenu'));
+            menuEnabled.checked = settings.Enabled;
+            menuEnabled.disabled = false;
+            saveMenuButton.disabled = false;
+            menuStatus.textContent = '';
+        } catch (error) {
+            menuStatus.textContent = 'Could not load user-menu settings (' + errorText(error) + ').';
+            console.warn('[ProgressSync]', 'could not load Watch History menu settings', error);
+        }
+    }
+
+    async function saveMenuSettings() {
+        saveMenuButton.disabled = true;
+        menuStatus.textContent = 'Saving user-menu settings…';
+        const settings = { Enabled: menuEnabled.checked };
+        try {
+            await ApiClient.ajax({
+                type: 'POST',
+                url: ApiClient.getUrl('ProgressSync/Admin/WatchHistoryMenu'),
+                data: JSON.stringify(settings),
+                contentType: 'application/json'
+            });
+            menuStatus.textContent = settings.Enabled
+                ? 'Watch History is enabled in the user menu. Other users may need to refresh Jellyfin Web.'
+                : 'Watch History is hidden from the user menu. Other users may need to refresh Jellyfin Web.';
+            window.dispatchEvent(new CustomEvent('progressSync:watchHistoryMenuChanged', { detail: settings }));
+        } catch (error) {
+            menuStatus.textContent = 'Could not save user-menu settings (' + errorText(error) + ').';
+            console.warn('[ProgressSync]', 'could not save Watch History menu settings', error);
+        } finally {
+            saveMenuButton.disabled = false;
+            menuEnabled.disabled = false;
+        }
+    }
 
     async function loadUsers() {
         status.textContent = 'Loading users…';

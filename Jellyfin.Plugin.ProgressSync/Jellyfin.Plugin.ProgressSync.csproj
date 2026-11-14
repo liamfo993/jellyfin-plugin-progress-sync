@@ -30,6 +30,8 @@
     <EmbeddedResource Include="Configuration\configPage.html" />
     <None Remove="Web\progressSync.js" />
     <EmbeddedResource Include="Web\progressSync.js" />
+    <None Remove="Web\watchHistoryMenu.js" />
+    <EmbeddedResource Include="Web\watchHistoryMenu.js" />
     <None Remove="Pages\WatchHistory.html" />
     <EmbeddedResource Include="Pages\WatchHistory.html" />
     <None Remove="Pages\WatchHistory.js" />

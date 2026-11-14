@@ -285,6 +285,26 @@
             <section class="ps-panel">
                 <div class="ps-panel-header">
                     <div>
+                        <h2 class="sectionTitle">User menu</h2>
+                        <div class="fieldDescription">Add a Watch History shortcut to every user's Jellyfin avatar menu.</div>
+                    </div>
+                </div>
+                <div class="checkboxContainer">
+                    <label>
+                        <input id="psShowWatchHistoryMenu" type="checkbox" is="emby-checkbox" disabled>
+                        <span>Show Watch History in the user menu</span>
+                    </label>
+                </div>
+                <div class="form concentric">
+                    <button is="emby-button" type="button" class="raised button-submit" id="psSaveWatchHistoryMenu" disabled>
+                        <span>Save</span>
+                    </button>
+                </div>
+                <div id="psWatchHistoryMenuStatus" class="fieldDescription" role="status" aria-live="polite"></div>
+            </section>
+            <section class="ps-panel">
+                <div class="ps-panel-header">
+                    <div>
                         <h2 class="sectionTitle">Recent activity</h2>
                         <div class="fieldDescription">Only items you can access are shown.</div>
                     </div>

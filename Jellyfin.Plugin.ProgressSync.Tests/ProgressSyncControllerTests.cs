@@ -35,6 +35,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ConcurrentStreamLimitStore _streamLimits;
     private readonly PushoverNotificationStore _pushoverSettings;
+    private readonly WatchHistoryMenuStore _watchHistoryMenu;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -53,6 +54,9 @@ public sealed class ProgressSyncControllerTests : IDisposable
         _pushoverSettings = new PushoverNotificationStore(
             Path.Combine(_dir, "pushover-notifications.json"),
             NullLogger<PushoverNotificationStore>.Instance);
+        _watchHistoryMenu = new WatchHistoryMenuStore(
+            Path.Combine(_dir, "watch-history-menu.json"),
+            NullLogger<WatchHistoryMenuStore>.Instance);
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         _alice = _server.AddUser("alice");
         _bob = _server.AddUser("bob");
@@ -90,6 +94,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
                 Mock.Of<IHttpClientFactory>(),
                 NullLogger<PushoverNotificationService>.Instance),
             new WebInjectionStatus(),
+            _watchHistoryMenu,
             NullLogger<ProgressSyncController>.Instance);
         var claimValue = rawClaim ?? caller?.Id.ToString("N");
         Claim[] claims = claimValue is null ? [] : [new Claim("Jellyfin-UserId", claimValue)];
@@ -206,6 +211,16 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(_bob.Id, result[1].Id);
         Assert.Equal(charlie.Id, result[2].Id);
         Assert.Equal(403, Status(As(null).GetRecentlyWatchedUsers()));
+    }
+
+    [Fact]
+    public void WatchHistoryMenuSettings_CanBeReadAndUpdated()
+    {
+        var controller = As(_alice);
+
+        Assert.False(controller.GetWatchHistoryMenuSettings().Value!.Enabled);
+        Assert.Equal(204, Status(controller.UpdateWatchHistoryMenuSettings(new WatchHistoryMenuSettings(true))));
+        Assert.True(controller.GetWatchHistoryMenuSettings().Value!.Enabled);
     }
 
     [Fact]

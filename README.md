@@ -28,6 +28,7 @@ the original per-title progress controls.
   - Sort by date added, release date, or alphabetically; load more results as needed.
 - **Watch history and status**
   - Browse recent completed and in-progress movies and episodes by user.
+  - Optionally add a Watch History shortcut to every user's Jellyfin avatar menu.
   - See users' watched or in-progress status on movie and episode pages.
 - **Playback limits**
   - Set a maximum number of concurrent streams per user; zero means unlimited.
@@ -43,8 +44,8 @@ Favorites, ratings, and audio/subtitle choices are left alone.
 
 - Jellyfin 12.1 or newer
 - The [File Transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation)
-  plugin for the sync and watch-status buttons on title pages. Server-side sync and the plugin's
-  own pages do not require it.
+  plugin for the sync and watch-status buttons on title pages and the optional user-menu shortcut.
+  Server-side sync and the plugin's Dashboard pages do not require it.
 
 ## Installation
 
@@ -68,8 +69,11 @@ Favorites, ratings, and audio/subtitle choices are left alone.
 
 ## Usage
 
-Open **Watch History** from Jellyfin's main menu to access the dashboard and its tabs. Admins can
-also open the Progress Sync plugin page from the Plugins menu.
+Admins can open **Watch History** from **Dashboard → Plugins**. To add a Watch History shortcut to
+all users' avatar menus in Jellyfin Web, open the Watch History Dashboard page, enable **Show Watch
+History in the user menu**, and save. This shortcut uses the File Transformation plugin and is
+available in the web client; users may need to refresh Jellyfin Web after the setting changes.
+Admins can also open the Progress Sync plugin page from the Plugins menu.
 
 ### Progress sync
 

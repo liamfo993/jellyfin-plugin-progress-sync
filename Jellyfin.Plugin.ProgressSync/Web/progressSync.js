@@ -62,6 +62,132 @@
 
     document.addEventListener('viewshow', onViewShow);
 
+    let watchHistoryMenuEnabled = null;
+    let watchHistoryMenuUserId = null;
+    let watchHistoryMenuRequest = null;
+    let watchHistoryDialogModule = null;
+
+    function removeWatchHistoryMenuLink() {
+        document.getElementById('progressSyncWatchHistoryMenuLink')?.remove();
+    }
+
+    function setWatchHistoryMenuEnabled(enabled) {
+        watchHistoryMenuEnabled = enabled;
+        if (!enabled) {
+            removeWatchHistoryMenuLink();
+            return;
+        }
+
+        const menu = document.getElementById('app-user-menu');
+        const settingsLink = menu && menu.querySelector('a[href="#/mypreferencesmenu"]');
+        if (!settingsLink || menu.querySelector('#progressSyncWatchHistoryMenuLink')) {
+            return;
+        }
+
+        const link = settingsLink.cloneNode(true);
+        link.id = 'progressSyncWatchHistoryMenuLink';
+        link.href = '#';
+
+        const icon = link.querySelector('svg');
+        if (icon) {
+            const replacement = document.createElement('span');
+            replacement.className = 'material-icons';
+            replacement.setAttribute('aria-hidden', 'true');
+            replacement.textContent = 'history';
+            icon.replaceWith(replacement);
+        }
+        const text = link.querySelector('.MuiListItemText-primary');
+        if (text) {
+            text.textContent = 'Watch History';
+        }
+
+        link.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            menu.querySelector(':scope > .MuiBackdrop-root')?.click();
+            openWatchHistoryMenu().catch(function (error) {
+                console.warn(LOG, 'could not open Watch History', error);
+            });
+        });
+        settingsLink.insertAdjacentElement('afterend', link);
+    }
+
+    function refreshWatchHistoryMenu() {
+        const apiClient = window.ApiClient;
+        if (!apiClient || typeof apiClient.getCurrentUserId !== 'function') {
+            removeWatchHistoryMenuLink();
+            return;
+        }
+
+        const userId = apiClient.getCurrentUserId();
+        if (!userId) {
+            watchHistoryMenuUserId = null;
+            watchHistoryMenuEnabled = null;
+            removeWatchHistoryMenuLink();
+            return;
+        }
+
+        if (watchHistoryMenuUserId !== userId) {
+            watchHistoryMenuUserId = userId;
+            watchHistoryMenuEnabled = null;
+        }
+        if (watchHistoryMenuEnabled !== null) {
+            if (watchHistoryMenuEnabled && !document.getElementById('progressSyncWatchHistoryMenuLink')) {
+                setWatchHistoryMenuEnabled(true);
+            }
+            return;
+        }
+        if (watchHistoryMenuRequest) {
+            return;
+        }
+
+        watchHistoryMenuRequest = apiClient.getJSON(apiClient.getUrl('ProgressSync/WatchHistoryMenu'))
+            .then(function (settings) {
+                if (apiClient.getCurrentUserId() === userId) {
+                    setWatchHistoryMenuEnabled(settings.Enabled === true);
+                }
+            })
+            .catch(function (error) {
+                console.warn(LOG, 'could not load Watch History menu setting', error);
+                if (apiClient.getCurrentUserId() === userId) {
+                    setWatchHistoryMenuEnabled(false);
+                }
+            })
+            .finally(function () {
+                watchHistoryMenuRequest = null;
+                if (apiClient.getCurrentUserId() !== userId) {
+                    refreshWatchHistoryMenu();
+                }
+            });
+    }
+
+    async function openWatchHistoryMenu() {
+        const apiClient = window.ApiClient;
+        const dialogHelper = window.Dashboard && window.Dashboard.dialogHelper;
+        if (!apiClient || !dialogHelper) {
+            throw new Error('Jellyfin dialog support is unavailable.');
+        }
+
+        if (!watchHistoryDialogModule) {
+            watchHistoryDialogModule = import(apiClient.getUrl('ProgressSync/WatchHistoryMenuScript'));
+        }
+        let module;
+        try {
+            module = await watchHistoryDialogModule;
+        } catch (error) {
+            watchHistoryDialogModule = null;
+            throw error;
+        }
+        module.default(apiClient, dialogHelper);
+    }
+
+    const menuObserver = new MutationObserver(refreshWatchHistoryMenu);
+    menuObserver.observe(document.body, { childList: true, subtree: true });
+    refreshWatchHistoryMenu();
+    window.addEventListener('progressSync:watchHistoryMenuChanged', function (event) {
+        setWatchHistoryMenuEnabled(Boolean(event.detail && event.detail.Enabled));
+    });
+
     // The script is deferred; handle a details view that is already visible (e.g. hard reload on #/details).
     queueMicrotask(function () {
         const view = document.querySelector('#itemDetailPage:not(.hide)');
