@@ -1,4 +1,5 @@
 const HISTORY_VIEWS = [
+    { key: 'currentlyWatching', label: 'Currently watching' },
     { key: 'movies', label: 'Movies', itemType: 'Movie', inProgress: false },
     { key: 'episodes', label: 'Episodes', itemType: 'Episode', inProgress: false },
     { key: 'inProgressMovies', label: 'In-progress movies', itemType: 'Movie', inProgress: true },
@@ -106,6 +107,10 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         const message = document.createElement('p');
         message.className = 'ps-wh-empty';
         message.textContent = 'Expand to load recent activity.';
+        const playbackStatus = document.createElement('p');
+        playbackStatus.className = 'ps-wh-empty';
+        playbackStatus.setAttribute('role', 'status');
+        playbackStatus.hidden = true;
         const tabs = document.createElement('div');
         tabs.className = 'ps-wh-tabs';
         tabs.setAttribute('role', 'tablist');
@@ -118,27 +123,40 @@ export default function openWatchHistory(apiClient, dialogHelper) {
             tab.setAttribute('role', 'tab');
             tab.id = panelId + '-tab';
             tab.setAttribute('aria-controls', panelId);
-            tab.setAttribute('aria-selected', String(index === 0));
-            tab.tabIndex = index === 0 ? 0 : -1;
+            tab.hidden = index === 0;
+            tab.setAttribute('aria-selected', String(index === 1));
+            tab.tabIndex = index === 1 ? 0 : -1;
             tab.textContent = view.label;
 
             const grid = document.createElement('div');
             grid.className = 'ps-wh-grid';
             grid.id = panelId;
             grid.setAttribute('role', 'tabpanel');
-            grid.hidden = index !== 0;
+            grid.hidden = index !== 1;
             grid.setAttribute('aria-labelledby', tab.id);
             tab.addEventListener('click', function () {
+                card.dataset.tabChosen = 'true';
                 showTab(view, views);
             });
             return { ...view, tab, grid };
         });
         tabs.append(...views.map(view => view.tab));
         tabs.hidden = true;
-        content.append(message, tabs, ...views.map(view => view.grid));
+        content.append(message, tabs, ...views.map(view => view.grid), playbackStatus);
         card.append(summary, content);
 
+        let timer;
+        let generation = 0;
+        let lastPlayback = '';
         card.addEventListener('toggle', function () {
+            generation++;
+            clearTimeout(timer);
+            if (card.open) {
+                views[0].tab.hidden = true;
+                showTab(views[1], views);
+                delete card.dataset.tabChosen;
+                refreshCurrentlyWatching(generation);
+            }
             if (card.open && card.dataset.loaded !== 'true' && card.dataset.loading !== 'true') {
                 loadUserHistory(user, card, hint, message, tabs, views).catch(function (error) {
                     hint.textContent = 'Could not load history';
@@ -149,6 +167,45 @@ export default function openWatchHistory(apiClient, dialogHelper) {
                 });
             }
         });
+
+        async function refreshCurrentlyWatching(requestGeneration) {
+            try {
+                const items = await apiClient.getJSON(apiClient.getUrl('ProgressSync/CurrentlyWatching/Users/' + encodeURIComponent(user.Id)));
+                if (!card.isConnected || !card.open || requestGeneration !== generation) return;
+                if (!Array.isArray(items)) throw new Error('Invalid current playback response');
+                const current = views[0];
+                const wasHidden = current.tab.hidden;
+                current.tab.hidden = items.length === 0;
+                if (items.length) {
+                    const playbackKey = JSON.stringify(items.map(item => [
+                        item.ItemId, item.ItemName, item.ItemType, item.SeriesId, item.ProgressPercent
+                    ]));
+                    if (playbackKey !== lastPlayback) {
+                        populateGrid(current.grid, items, '');
+                        lastPlayback = playbackKey;
+                        import(apiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                            .then(module => module.default(apiClient, [current.grid]))
+                            .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+                    }
+                    current.tab.textContent = current.label + ' (' + items.length + ')';
+                    if (wasHidden && !card.dataset.tabChosen) showTab(current, views);
+                } else {
+                    lastPlayback = '';
+                    if (current.tab.getAttribute('aria-selected') === 'true') showTab(views[1], views);
+                }
+                playbackStatus.hidden = true;
+            } catch (error) {
+                if (!card.isConnected || !card.open || requestGeneration !== generation) return;
+                views[0].tab.hidden = true;
+                if (views[0].tab.getAttribute('aria-selected') === 'true') showTab(views[1], views);
+                playbackStatus.hidden = false;
+                playbackStatus.textContent = 'Could not load current playback (' + errorText(error) + ').';
+                console.warn('[ProgressSync]', 'could not load current playback', error);
+            }
+            if (card.isConnected && card.open && requestGeneration === generation) {
+                timer = setTimeout(() => refreshCurrentlyWatching(requestGeneration), 10000);
+            }
+        }
         return card;
     }
 
@@ -156,9 +213,9 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         card.dataset.loading = 'true';
         message.hidden = true;
         tabs.hidden = false;
-        showTab(views[0], views);
+        showTab(views[1], views);
         hint.textContent = 'Loading…';
-        for (const view of views) {
+        for (const view of views.slice(1)) {
             populateGrid(view.grid, [], 'Loading…');
         }
 
@@ -263,7 +320,8 @@ export default function openWatchHistory(apiClient, dialogHelper) {
             } else {
                 image.remove();
                 const placeholder = document.createElement('span');
-                placeholder.textContent = item.ItemType === 'Movie' ? 'Movie artwork unavailable' : 'Episode artwork unavailable';
+                placeholder.textContent = item.ItemType === 'Movie' ? 'Movie artwork unavailable'
+                    : item.ItemType === 'Episode' ? 'Episode artwork unavailable' : 'Artwork unavailable';
                 poster.prepend(placeholder);
             }
         });
@@ -277,7 +335,7 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         const date = document.createElement('time');
         date.className = 'ps-wh-date';
         date.dateTime = item.LastPlayedDate;
-        date.textContent = formatDate(item.LastPlayedDate);
+        date.textContent = item.CurrentlyWatching ? 'Currently playing' : formatDate(item.LastPlayedDate);
         details.append(title, date);
 
         if (item.ProgressPercent !== null && item.ProgressPercent !== undefined) {

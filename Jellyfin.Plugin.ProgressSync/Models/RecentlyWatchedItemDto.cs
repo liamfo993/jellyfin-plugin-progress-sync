@@ -12,6 +12,7 @@ namespace Jellyfin.Plugin.ProgressSync.Models;
 /// <param name="SeriesId">The visible series id, for episode artwork.</param>
 /// <param name="ProgressPercent">The rounded playback percentage, for in-progress items.</param>
 /// <param name="InProgress">Whether the item is partially watched.</param>
+/// <param name="CurrentlyWatching">Whether the item is in an active playback session.</param>
 public sealed record RecentlyWatchedItemDto(
     Guid ItemId,
     string ItemName,
@@ -19,4 +20,5 @@ public sealed record RecentlyWatchedItemDto(
     DateTime LastPlayedDate,
     Guid? SeriesId = null,
     int? ProgressPercent = null,
-    bool InProgress = false);
+    bool InProgress = false,
+    bool CurrentlyWatching = false);

@@ -24,15 +24,18 @@ export default function (view) {
     const visibilityUsers = page.querySelector('#psVisibilityUsers');
     const visibilityStatus = page.querySelector('#psVisibilityStatus');
     const saveVisibilityButton = page.querySelector('#psSaveVisibility');
+    let active = false;
 
     LibraryMenu.setTabs('WatchHistory', 0, getTabs);
 
     view.addEventListener('viewshow', function () {
+        active = true;
         LibraryMenu.setTabs('WatchHistory', 0, getTabs);
         loadUsers();
         loadMenuSettings();
         loadVisibilitySettings();
     });
+    view.addEventListener('viewhide', function () { active = false; });
 
     page.querySelector('#psRefreshHistory').addEventListener('click', loadUsers);
     saveMenuButton.addEventListener('click', saveMenuSettings);
@@ -232,6 +235,10 @@ export default function (view) {
         const message = document.createElement('p');
         message.className = 'ps-history-empty';
         message.textContent = 'Expand to load recent activity.';
+        const playbackStatus = document.createElement('p');
+        playbackStatus.className = 'ps-history-empty';
+        playbackStatus.setAttribute('role', 'status');
+        playbackStatus.hidden = true;
 
         const userKey = user.Id.replace(/[^a-zA-Z0-9_-]/g, '');
         const tabs = document.createElement('div');
@@ -239,13 +246,15 @@ export default function (view) {
         tabs.setAttribute('role', 'tablist');
         tabs.setAttribute('aria-label', user.Name + ' watch history');
         const historyViews = [
+            { key: 'currentlyWatching', label: 'Currently watching' },
             { key: 'movies', label: 'Movies', itemType: 'Movie', inProgress: false },
             { key: 'episodes', label: 'Episodes', itemType: 'Episode', inProgress: false },
             { key: 'inProgressMovies', label: 'In-progress movies', itemType: 'Movie', inProgress: true },
             { key: 'inProgressEpisodes', label: 'In-progress episodes', itemType: 'Episode', inProgress: true }
         ].map((viewConfig, index) => {
             const panelId = 'ps-history-' + viewConfig.key + '-' + userKey;
-            const tab = createHistoryTab(viewConfig.label, panelId, index === 0);
+            const tab = createHistoryTab(viewConfig.label, panelId, index === 1);
+            tab.hidden = index === 0;
             const grid = createHistoryGrid(panelId);
             grid.hidden = true;
             return { ...viewConfig, tab, grid };
@@ -254,6 +263,7 @@ export default function (view) {
 
         for (const viewConfig of historyViews) {
             viewConfig.tab.addEventListener('click', function () {
+                card.dataset.tabChosen = 'true';
                 showHistoryTab(viewConfig, historyViews);
             });
         }
@@ -263,27 +273,77 @@ export default function (view) {
             }
 
             event.preventDefault();
-            const currentIndex = historyViews.findIndex(viewConfig => viewConfig.tab === event.target);
+            const visibleViews = historyViews.filter(viewConfig => !viewConfig.tab.hidden);
+            const currentIndex = visibleViews.findIndex(viewConfig => viewConfig.tab === event.target);
             if (currentIndex < 0) {
                 return;
             }
 
             const direction = event.key === 'ArrowRight' ? 1 : -1;
-            const nextIndex = (currentIndex + direction + historyViews.length) % historyViews.length;
-            const nextView = historyViews[nextIndex];
+            const nextIndex = (currentIndex + direction + visibleViews.length) % visibleViews.length;
+            const nextView = visibleViews[nextIndex];
             showHistoryTab(nextView, historyViews);
             nextView.tab.focus();
         });
 
         tabs.append(...historyViews.map(viewConfig => viewConfig.tab));
-        content.append(message, tabs, ...historyViews.map(viewConfig => viewConfig.grid));
+        content.append(message, tabs, ...historyViews.map(viewConfig => viewConfig.grid), playbackStatus);
         card.append(summary, content);
+        let timer;
+        let generation = 0;
+        let lastPlayback = '';
         card.addEventListener('toggle', function () {
+            generation++;
+            clearTimeout(timer);
+            if (card.open) {
+                historyViews[0].tab.hidden = true;
+                showHistoryTab(historyViews[1], historyViews);
+                delete card.dataset.tabChosen;
+                refreshCurrentlyWatching(generation);
+            }
             if (card.open && card.dataset.loaded !== 'true' && card.dataset.loading !== 'true') {
                 loadUserHistory(user, card, hint, message, tabs, historyViews);
             }
         });
 
+        async function refreshCurrentlyWatching(requestGeneration) {
+            try {
+                const items = await ApiClient.getJSON(ApiClient.getUrl('ProgressSync/CurrentlyWatching/Users/' + encodeURIComponent(user.Id)));
+                if (!active || !card.isConnected || !card.open || requestGeneration !== generation) return;
+                if (!Array.isArray(items)) throw new Error('Invalid current playback response');
+                const current = historyViews[0];
+                const wasHidden = current.tab.hidden;
+                current.tab.hidden = items.length === 0;
+                if (items.length) {
+                    const playbackKey = JSON.stringify(items.map(item => [
+                        item.ItemId, item.ItemName, item.ItemType, item.SeriesId, item.ProgressPercent
+                    ]));
+                    if (playbackKey !== lastPlayback) {
+                        populateHistoryGrid(current.grid, items, '');
+                        lastPlayback = playbackKey;
+                        import(ApiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                            .then(module => module.default(ApiClient, [current.grid]))
+                            .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+                    }
+                    current.tab.textContent = current.label + ' (' + items.length + ')';
+                    if (wasHidden && !card.dataset.tabChosen) showHistoryTab(current, historyViews);
+                } else {
+                    lastPlayback = '';
+                    if (current.tab.getAttribute('aria-selected') === 'true') showHistoryTab(historyViews[1], historyViews);
+                }
+                playbackStatus.hidden = true;
+            } catch (error) {
+                if (!active || !card.isConnected || !card.open || requestGeneration !== generation) return;
+                historyViews[0].tab.hidden = true;
+                if (historyViews[0].tab.getAttribute('aria-selected') === 'true') showHistoryTab(historyViews[1], historyViews);
+                playbackStatus.hidden = false;
+                playbackStatus.textContent = 'Could not load current playback (' + errorText(error) + ').';
+                console.warn('[ProgressSync]', 'could not load current playback', error);
+            }
+            if (active && card.isConnected && card.open && requestGeneration === generation) {
+                timer = setTimeout(() => refreshCurrentlyWatching(requestGeneration), 10000);
+            }
+        }
         return card;
     }
 
@@ -291,9 +351,9 @@ export default function (view) {
         card.dataset.loading = 'true';
         message.hidden = true;
         tabs.hidden = false;
-        showHistoryTab(historyViews[0], historyViews);
+        showHistoryTab(historyViews[1], historyViews);
         hint.textContent = 'Loading…';
-        for (const viewConfig of historyViews) {
+        for (const viewConfig of historyViews.slice(1)) {
             populateHistoryGrid(viewConfig.grid, [], 'Loading…');
         }
 
@@ -443,7 +503,7 @@ function createHistoryCard(item) {
     const date = document.createElement('time');
     date.className = 'ps-history-date';
     date.dateTime = item.LastPlayedDate;
-    date.textContent = formatDate(item.LastPlayedDate);
+    date.textContent = item.CurrentlyWatching ? 'Currently playing' : formatDate(item.LastPlayedDate);
 
     details.append(title, date);
     if (item.ProgressPercent !== null && item.ProgressPercent !== undefined) {
@@ -478,7 +538,8 @@ function createHistoryCard(item) {
 function showPosterPlaceholder(image, itemType) {
     const placeholder = document.createElement('span');
     placeholder.className = 'ps-history-placeholder';
-    placeholder.textContent = itemType === 'Movie' ? 'Movie artwork unavailable' : 'Episode artwork unavailable';
+    placeholder.textContent = itemType === 'Movie' ? 'Movie artwork unavailable'
+        : itemType === 'Episode' ? 'Episode artwork unavailable' : 'Artwork unavailable';
     image.replaceWith(placeholder);
 }
 

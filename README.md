@@ -154,6 +154,9 @@ Current rules show posters and details and can be removed from the same tab.
 Expand a user on **Watch History** to see up to 25 completed movies and 25 completed episodes,
 plus separate in-progress movie and episode lists with up to 25 items each. In-progress cards show
 a progress bar and percentage when runtime is available. Items you cannot access are omitted.
+When the user has accessible active playback, a **Currently watching** tab appears first, including
+paused sessions and multiple simultaneous streams. It refreshes every 10 seconds while expanded;
+watch-history visibility and item access rules still apply.
 On movie and episode pages, the **Watch status** button shows enabled users' watched, unwatched,
 or in-progress status.
 

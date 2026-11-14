@@ -14,6 +14,7 @@ using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -41,6 +42,7 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
+    private readonly ISessionManager _sessionManager;
     private readonly ProgressCopier _copier;
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
@@ -58,6 +60,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="userManager">Instance of the <see cref="IUserManager"/> interface.</param>
     /// <param name="userDataManager">Instance of the <see cref="IUserDataManager"/> interface.</param>
+    /// <param name="sessionManager">The Jellyfin session manager.</param>
     /// <param name="copier">The progress copier.</param>
     /// <param name="store">The link store.</param>
     /// <param name="globalSettings">The global sync settings store.</param>
@@ -72,6 +75,7 @@ public sealed class ProgressSyncController : ControllerBase
         ILibraryManager libraryManager,
         IUserManager userManager,
         IUserDataManager userDataManager,
+        ISessionManager sessionManager,
         ProgressCopier copier,
         LinkStore store,
         GlobalSyncSettingsStore globalSettings,
@@ -86,6 +90,7 @@ public sealed class ProgressSyncController : ControllerBase
         _libraryManager = libraryManager;
         _userManager = userManager;
         _userDataManager = userDataManager;
+        _sessionManager = sessionManager;
         _copier = copier;
         _store = store;
         _globalSettings = globalSettings;
@@ -265,6 +270,70 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         return GetUserHistory(user, caller, inProgress: true).ToList();
+    }
+
+    /// <summary>
+    /// Lists the selected user's currently playing items that the caller can access.
+    /// </summary>
+    /// <param name="userId">The user whose active playback to list.</param>
+    /// <response code="200">Active playback returned.</response>
+    /// <response code="403">The caller is not a user.</response>
+    /// <response code="404">The selected user is unavailable.</response>
+    /// <returns>The accessible active playback items.</returns>
+    [HttpGet("CurrentlyWatching/Users/{userId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public ActionResult<IReadOnlyList<RecentlyWatchedItemDto>> GetUserCurrentlyWatching([FromRoute] Guid userId)
+    {
+        var caller = GetCurrentUser();
+        if (caller is null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var user = GetEnabledUser(userId);
+        if (user is null || !_watchHistoryVisibility.CanView(caller.Id, user.Id))
+        {
+            return NotFound();
+        }
+
+        var items = new List<RecentlyWatchedItemDto>();
+        foreach (var session in _sessionManager.Sessions.Where(session => session.UserId == user.Id))
+        {
+            var nowPlaying = session.NowPlayingItem;
+            if (nowPlaying is null)
+            {
+                continue;
+            }
+
+            var item = GetVisibleItem(nowPlaying.Id, caller);
+            if (item is null)
+            {
+                continue;
+            }
+
+            var series = item is Episode episode && episode.SeriesId != Guid.Empty
+                ? GetVisibleItem(episode.SeriesId, caller)
+                : null;
+            var name = item is Episode episodeItem ? FormatEpisodeName(episodeItem, series?.Name) : item.Name;
+            var position = session.PlayState?.PositionTicks;
+            int? progress = position.HasValue && item.RunTimeTicks is > 0
+                ? Math.Clamp((int)Math.Round((double)position.Value / item.RunTimeTicks.Value * 100), 0, 100)
+                : null;
+            items.Add(new RecentlyWatchedItemDto(
+                item.Id,
+                name,
+                item is Episode ? "Episode" : item is Movie ? "Movie" : item.GetType().Name,
+                DateTime.UtcNow,
+                series?.Id,
+                progress,
+                true,
+                true));
+        }
+
+        return items;
     }
 
     private IReadOnlyList<RecentlyWatchedItemDto> GetUserHistory(User user, User caller, bool inProgress)

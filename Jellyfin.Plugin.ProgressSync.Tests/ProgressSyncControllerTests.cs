@@ -15,6 +15,7 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Querying;
+using MediaBrowser.Model.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -31,6 +32,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "ps-tests-" + Guid.NewGuid().ToString("N"));
     private readonly FakeServer _server = new();
+    private readonly Mock<ISessionManager> _sessions = new();
     private readonly LinkStore _store;
     private readonly GlobalSyncSettingsStore _globalSettings;
     private readonly ConcurrentStreamLimitStore _streamLimits;
@@ -84,6 +86,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
             _server.Library.Object,
             _server.Users.Object,
             _server.UserData.Object,
+            _sessions.Object,
             _copier,
             _store,
             _globalSettings,
@@ -233,8 +236,50 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(_bob.Id, Assert.Single(As(_bob).GetRecentlyWatchedUsers().Value!).Id);
         Assert.Equal(404, Status(As(_bob).GetUserRecentlyWatched(_alice.Id)));
         Assert.Equal(404, Status(As(_bob).GetUserInProgress(_alice.Id)));
+        Assert.Equal(404, Status(As(_bob).GetUserCurrentlyWatching(_alice.Id)));
         Assert.Empty(As(_alice).GetUserRecentlyWatched(_alice.Id).Value!);
         Assert.Equal(_alice.Id, Assert.Single(As(_alice).GetWatchStatus(_movie.Id).Value!).UserId);
+    }
+
+    [Fact]
+    public void GetUserCurrentlyWatching_RespectsSessionsAndItemAccess()
+    {
+        _movie.RunTimeTicks = 1000;
+        var movieSession = new SessionInfo(_sessions.Object, NullLogger.Instance)
+        {
+            UserId = _alice.Id,
+            NowPlayingItem = new BaseItemDto { Id = _movie.Id }
+        };
+        movieSession.PlayState.PositionTicks = 500;
+        movieSession.PlayState.IsPaused = true;
+        var episodeSession = new SessionInfo(_sessions.Object, NullLogger.Instance)
+        {
+            UserId = _alice.Id,
+            NowPlayingItem = new BaseItemDto { Id = _episode.Id }
+        };
+        var otherSession = new SessionInfo(_sessions.Object, NullLogger.Instance)
+        {
+            UserId = _bob.Id,
+            NowPlayingItem = new BaseItemDto { Id = _audio.Id }
+        };
+        var idleSession = new SessionInfo(_sessions.Object, NullLogger.Instance) { UserId = _alice.Id };
+        _sessions.SetupGet(manager => manager.Sessions).Returns([movieSession, episodeSession, otherSession, idleSession]);
+
+        var items = As(_bob).GetUserCurrentlyWatching(_alice.Id).Value!;
+        Assert.Equal(2, items.Count);
+        Assert.Equal(50, items[0].ProgressPercent);
+        Assert.True(items[0].CurrentlyWatching);
+        Assert.Equal(_series.Id, items[1].SeriesId);
+        Assert.Equal(_audio.Id, Assert.Single(As(_bob).GetUserCurrentlyWatching(_bob.Id).Value!).ItemId);
+
+        _server.Hidden.Add((_bob.Id, _movie.Id));
+        _server.Hidden.Add((_bob.Id, _series.Id));
+        items = As(_bob).GetUserCurrentlyWatching(_alice.Id).Value!;
+        Assert.Null(Assert.Single(items).SeriesId);
+        _server.Hidden.Add((_bob.Id, _episode.Id));
+        Assert.Empty(As(_bob).GetUserCurrentlyWatching(_alice.Id).Value!);
+        Assert.Equal(404, Status(As(_bob).GetUserCurrentlyWatching(Guid.NewGuid())));
+        Assert.Equal(403, Status(As(null).GetUserCurrentlyWatching(_alice.Id)));
     }
 
     [Fact]

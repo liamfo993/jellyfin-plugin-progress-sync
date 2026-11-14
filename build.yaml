@@ -18,4 +18,4 @@ imageUrl: "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-
 artifacts:
   - "Jellyfin.Plugin.ProgressSync.dll"
 changelog: |-
-  Improve Watch History loading by querying each media type separately and displaying results as they arrive.
+  Show accessible active playback in a live Currently watching tab in Watch History.
