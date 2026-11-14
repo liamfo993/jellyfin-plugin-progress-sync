@@ -18,6 +18,7 @@ export default function openWatchHistory(apiClient, dialogHelper) {
     dialog.innerHTML = ''
         + '<style>'
         + '.ps-watch-history-dialog{width:min(96vw,1100px);max-width:96vw}'
+        + '@media(max-width:80em),(max-height:45em){.ps-watch-history-dialog{position:fixed!important;top:0!important;right:0!important;bottom:0!important;left:0!important;width:auto!important;height:auto!important;max-width:none!important;max-height:none!important;margin:0!important}}'
         + '.ps-watch-history-dialog [hidden]{display:none!important}'
         + '.ps-watch-history-dialog .formDialogContent{min-height:0}'
         + '.ps-wh-users{display:grid;gap:.75em;padding:1em}'

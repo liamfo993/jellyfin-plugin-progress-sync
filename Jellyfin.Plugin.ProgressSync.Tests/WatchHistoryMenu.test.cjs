@@ -136,6 +136,18 @@ test('uses a fullscreen dialog on compact layouts', () => {
     assert.equal(setup(false).options[0].size, 'small');
 });
 
+test('compact dialog styles remove desktop size limits', () => {
+    const { dialog } = setup(true);
+    const compactRule = dialog.innerHTML.match(/@media\(max-width:80em\),\(max-height:45em\)\{\.ps-watch-history-dialog\{([^}]*)\}\}/);
+    assert.ok(compactRule);
+    for (const declaration of [
+        'top:0!important', 'right:0!important', 'bottom:0!important', 'left:0!important',
+        'width:auto!important', 'height:auto!important', 'max-width:none!important', 'max-height:none!important'
+    ]) {
+        assert.ok(compactRule[1].includes(declaration), `Missing ${declaration}`);
+    }
+});
+
 test('history tabs switch panels and hidden panels have an explicit display rule', async () => {
     const { dialog, dialogElements } = setup(false);
     await new Promise(resolve => setImmediate(resolve));
