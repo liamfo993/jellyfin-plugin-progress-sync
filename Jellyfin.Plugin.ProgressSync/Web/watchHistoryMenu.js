@@ -7,12 +7,19 @@ const HISTORY_VIEWS = [
 let dialogSequence = 0;
 
 export default function openWatchHistory(apiClient, dialogHelper) {
-    const dialog = dialogHelper.createDialog({ removeOnClose: true, size: 'small', scrollY: true });
+    const compactLayout = window.matchMedia('(max-width: 80em), (max-height: 45em)').matches;
+    const dialog = dialogHelper.createDialog({
+        removeOnClose: true,
+        size: compactLayout ? 'fullscreen' : 'small',
+        scrollY: true
+    });
     dialog.classList.add('formDialog', 'ps-watch-history-dialog');
     const dialogId = ++dialogSequence;
     dialog.innerHTML = ''
         + '<style>'
         + '.ps-watch-history-dialog{width:min(96vw,1100px);max-width:96vw}'
+        + '.ps-watch-history-dialog [hidden]{display:none!important}'
+        + '.ps-watch-history-dialog .formDialogContent{min-height:0}'
         + '.ps-wh-users{display:grid;gap:.75em;padding:1em}'
         + '.ps-wh-user{overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.04)}'
         + '.ps-wh-user[open]{border-color:rgba(0,164,220,.5)}'
@@ -198,7 +205,7 @@ export default function openWatchHistory(apiClient, dialogHelper) {
 
     function showTab(selectedView, views) {
         for (const view of views) {
-            const selected = view === selectedView;
+            const selected = view.key === selectedView.key;
             view.tab.setAttribute('aria-selected', String(selected));
             view.tab.tabIndex = selected ? 0 : -1;
             view.grid.hidden = !selected;

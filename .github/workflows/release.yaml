@@ -51,6 +51,9 @@ jobs:
       - name: Test Progress Sync page
         run: node --test Jellyfin.Plugin.ProgressSync.Tests/ProgressSyncPage.test.cjs
 
+      - name: Test Watch History menu
+        run: node --test Jellyfin.Plugin.ProgressSync.Tests/WatchHistoryMenu.test.cjs
+
       - name: Build plugin zip
         run: |
           VERSION="${TAG#v}"

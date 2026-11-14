@@ -382,7 +382,7 @@ function createHistoryGrid(id) {
 
 function showHistoryTab(selectedView, historyViews) {
     for (const viewConfig of historyViews) {
-        const isSelected = viewConfig === selectedView;
+        const isSelected = viewConfig.key === selectedView.key;
         viewConfig.tab.setAttribute('aria-selected', String(isSelected));
         viewConfig.tab.tabIndex = isSelected ? 0 : -1;
         viewConfig.grid.hidden = !isSelected;
