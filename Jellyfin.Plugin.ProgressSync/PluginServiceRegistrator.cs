@@ -21,6 +21,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<MediaVisibilityService>();
         serviceCollection.AddSingleton<PushoverNotificationStore>();
         serviceCollection.AddSingleton<WatchHistoryMenuStore>();
+        serviceCollection.AddSingleton<WatchHistoryVisibilityStore>();
         serviceCollection.AddSingleton<ProgressCopier>();
         serviceCollection.AddSingleton<WebInjectionStatus>();
         serviceCollection.AddHttpClient("ProgressSyncPushover", client => client.Timeout = TimeSpan.FromSeconds(10));

@@ -250,6 +250,30 @@
             text-align: center;
         }
 
+        #progressSyncWatchHistory .ps-visibility-users {
+            display: grid;
+            gap: .75em;
+        }
+
+        #progressSyncWatchHistory .ps-visibility-user {
+            padding: .8em 1em;
+            border: 1px solid var(--ps-border);
+            border-radius: 8px;
+            background: var(--ps-card);
+        }
+
+        #progressSyncWatchHistory .ps-visibility-user summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #progressSyncWatchHistory .ps-visibility-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: .25em .75em;
+            padding-top: .75em;
+        }
+
         @media (max-width: 600px) {
             #progressSyncWatchHistory .ps-history-content {
                 padding-right: .75em;
@@ -257,8 +281,22 @@
             }
 
             #progressSyncWatchHistory .ps-history-grid {
-                grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
                 gap: .7em;
+            }
+
+            #progressSyncWatchHistory .ps-history-details {
+                gap: .3em;
+                padding: .55em;
+            }
+
+            #progressSyncWatchHistory .ps-history-title {
+                min-height: 2.5em;
+                font-size: .9em;
+            }
+
+            #progressSyncWatchHistory .ps-history-date {
+                font-size: .78em;
             }
         }
     </style>
@@ -301,6 +339,21 @@
                     </button>
                 </div>
                 <div id="psWatchHistoryMenuStatus" class="fieldDescription" role="status" aria-live="polite"></div>
+            </section>
+            <section class="ps-panel">
+                <div class="ps-panel-header">
+                    <div>
+                        <h2 class="sectionTitle">Watch history visibility</h2>
+                        <div class="fieldDescription">Choose which users each person can see in Watch History. Everyone can see everyone until you save custom rules. Users can always see their own history.</div>
+                    </div>
+                </div>
+                <div id="psVisibilityUsers" class="ps-visibility-users"></div>
+                <div class="form concentric">
+                    <button is="emby-button" type="button" class="raised button-submit" id="psSaveVisibility" disabled>
+                        <span>Save visibility</span>
+                    </button>
+                </div>
+                <div id="psVisibilityStatus" class="fieldDescription" role="status" aria-live="polite"></div>
             </section>
             <section class="ps-panel">
                 <div class="ps-panel-header">

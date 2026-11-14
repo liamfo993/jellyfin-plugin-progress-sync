@@ -26,6 +26,7 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         + '.ps-wh-tab{flex:0 0 auto;padding:.7em 1em;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--secondary-text-color,#aaa);cursor:pointer;font:inherit;white-space:nowrap}'
         + '.ps-wh-tab[aria-selected="true"]{border-bottom-color:#00a4dc;color:inherit;font-weight:700}'
         + '.ps-wh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:1em}'
+        + '@media(max-width:600px){.ps-wh-grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.6em}.ps-wh-details{gap:.3em;padding:.55em}.ps-wh-title{font-size:.9em}.ps-wh-date,.ps-wh-progress-label{font-size:.78em}}'
         + '.ps-wh-card{min-width:0;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.04);color:inherit;text-decoration:none}'
         + '.ps-wh-poster{position:relative;display:grid;overflow:hidden;aspect-ratio:2/3;place-items:center;background:rgba(0,164,220,.12)}'
         + '.ps-wh-poster img{width:100%;height:100%;object-fit:cover}'

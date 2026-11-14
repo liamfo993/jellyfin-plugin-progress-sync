@@ -20,6 +20,9 @@ export default function (view) {
     const menuEnabled = page.querySelector('#psShowWatchHistoryMenu');
     const menuStatus = page.querySelector('#psWatchHistoryMenuStatus');
     const saveMenuButton = page.querySelector('#psSaveWatchHistoryMenu');
+    const visibilityUsers = page.querySelector('#psVisibilityUsers');
+    const visibilityStatus = page.querySelector('#psVisibilityStatus');
+    const saveVisibilityButton = page.querySelector('#psSaveVisibility');
 
     LibraryMenu.setTabs('WatchHistory', 0, getTabs);
 
@@ -27,10 +30,12 @@ export default function (view) {
         LibraryMenu.setTabs('WatchHistory', 0, getTabs);
         loadUsers();
         loadMenuSettings();
+        loadVisibilitySettings();
     });
 
     page.querySelector('#psRefreshHistory').addEventListener('click', loadUsers);
     saveMenuButton.addEventListener('click', saveMenuSettings);
+    saveVisibilityButton.addEventListener('click', saveVisibilitySettings);
 
     async function loadMenuSettings() {
         menuStatus.textContent = 'Loading user-menu settings…';
@@ -67,6 +72,111 @@ export default function (view) {
         } finally {
             saveMenuButton.disabled = false;
             menuEnabled.disabled = false;
+        }
+    }
+
+    async function loadVisibilitySettings() {
+        visibilityStatus.textContent = 'Loading visibility settings…';
+        saveVisibilityButton.disabled = true;
+        try {
+            const settings = await ApiClient.getJSON(ApiClient.getUrl('ProgressSync/Admin/WatchHistoryVisibility'));
+            renderVisibilitySettings(settings);
+            saveVisibilityButton.disabled = false;
+            visibilityStatus.textContent = settings.IsConfigured
+                ? 'Changes affect Watch History and the title-page Watch status button.'
+                : 'No custom rules saved; all enabled users can see each other.';
+        } catch (error) {
+            visibilityStatus.textContent = 'Could not load visibility settings (' + errorText(error) + ').';
+            console.warn('[ProgressSync]', 'could not load Watch History visibility settings', error);
+        }
+    }
+
+    function renderVisibilitySettings(settings) {
+        visibilityUsers.replaceChildren();
+        const users = settings.Users || [];
+        const configuredRules = new Map((settings.Rules || []).map(rule => [rule.UserId, new Set(rule.VisibleUserIds)]));
+        const fragment = document.createDocumentFragment();
+
+        for (const viewer of users) {
+            const section = document.createElement('details');
+            section.className = 'ps-visibility-user';
+            section.dataset.viewerId = viewer.Id;
+            section.dataset.viewerName = viewer.Name;
+
+            const summary = document.createElement('summary');
+            summary.textContent = viewer.Name + ' can see everyone';
+            section.appendChild(summary);
+
+            const note = document.createElement('div');
+            note.className = 'fieldDescription';
+            note.textContent = 'Their own history is always visible to them.';
+            section.appendChild(note);
+
+            const options = document.createElement('div');
+            options.className = 'ps-visibility-options';
+            const visibleIds = configuredRules.get(viewer.Id);
+            let visibleCount = 0;
+            for (const user of users) {
+                if (user.Id === viewer.Id) {
+                    continue;
+                }
+                const label = document.createElement('label');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.dataset.viewerId = viewer.Id;
+                checkbox.dataset.userId = user.Id;
+                checkbox.checked = settings.IsConfigured
+                    ? Boolean(visibleIds && visibleIds.has(user.Id))
+                    : true;
+                if (checkbox.checked) {
+                    visibleCount++;
+                }
+                const text = document.createElement('span');
+                text.textContent = user.Name;
+                checkbox.addEventListener('change', updateSummary);
+                label.append(checkbox, text);
+                options.appendChild(label);
+            }
+            summary.textContent = viewer.Name + ' can see ' + visibleCount + ' other user' + (visibleCount === 1 ? '' : 's');
+            section.appendChild(options);
+            fragment.appendChild(section);
+        }
+        visibilityUsers.appendChild(fragment);
+    }
+
+    function updateSummary(event) {
+        const section = event.currentTarget.closest('.ps-visibility-user');
+        const selectedCount = section.querySelectorAll('input[type="checkbox"]:checked').length;
+        section.querySelector('summary').textContent = section.dataset.viewerName + ' can see '
+            + selectedCount + ' other user' + (selectedCount === 1 ? '' : 's');
+    }
+
+    async function saveVisibilitySettings() {
+        saveVisibilityButton.disabled = true;
+        visibilityStatus.textContent = 'Saving visibility settings…';
+        const users = Array.from(visibilityUsers.querySelectorAll('.ps-visibility-user'));
+        const settings = {
+            IsConfigured: true,
+            Rules: users.map(section => {
+                const visibleUserIds = Array.from(section.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(input => input.dataset.userId);
+                const viewerId = section.dataset.viewerId;
+                return { UserId: viewerId, VisibleUserIds: visibleUserIds };
+            })
+        };
+        try {
+            await ApiClient.ajax({
+                type: 'POST',
+                url: ApiClient.getUrl('ProgressSync/Admin/WatchHistoryVisibility'),
+                data: JSON.stringify(settings),
+                contentType: 'application/json'
+            });
+            visibilityStatus.textContent = 'Visibility settings saved.';
+        } catch (error) {
+            visibilityStatus.textContent = 'Could not save visibility settings (' + errorText(error) + ').';
+            console.warn('[ProgressSync]', 'could not save Watch History visibility settings', error);
+        } finally {
+            saveVisibilityButton.disabled = false;
         }
     }
 

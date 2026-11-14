@@ -29,6 +29,7 @@ the original per-title progress controls.
 - **Watch history and status**
   - Browse recent completed and in-progress movies and episodes by user.
   - Optionally add a Watch History shortcut to every user's Jellyfin avatar menu.
+  - Configure which users can see each other's watch history and title-page watch status.
   - See users' watched or in-progress status on movie and episode pages.
 - **Playback limits**
   - Set a maximum number of concurrent streams per user; zero means unlimited.
@@ -73,6 +74,9 @@ Admins can open **Watch History** from **Dashboard → Plugins**. To add a Watch
 all users' avatar menus in Jellyfin Web, open the Watch History Dashboard page, enable **Show Watch
 History in the user menu**, and save. This shortcut uses the File Transformation plugin and is
 available in the web client; users may need to refresh Jellyfin Web after the setting changes.
+The **Watch history visibility** section lets admins choose which other users each person can see
+in Watch History and the title-page **Watch status** dialog. Until custom rules are saved, all
+enabled users can see one another; each user can always see their own history.
 Admins can also open the Progress Sync plugin page from the Plugins menu.
 
 ### Progress sync
@@ -159,9 +163,9 @@ credentials are not returned to the browser; leave fields blank to keep them.
 
 Progress Sync is meant for households whose members trust each other:
 
-- Every user can see the other enabled users and their progress status for items they can access.
-  Items hidden by library access or parental controls are listed as unavailable. People are not told
-  when someone follows them.
+- Users can see enabled users and their progress according to the administrator's Watch history
+  visibility rules. Items hidden by library access or parental controls are listed as unavailable.
+  People are not told when someone follows them.
 - The watch history dashboard only includes movies and episodes the current user can access.
 - When enabled, Pushover notifications send selected item titles, user names, and playback device
   names to Pushover. Pushover credentials are stored in the plugin's server-side configuration.

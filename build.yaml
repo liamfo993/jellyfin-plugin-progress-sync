@@ -1,13 +1,14 @@
 name: "Progress Sync"
 guid: "c16569f5-02ed-4d6a-bbdb-649455e512d5"
-version: "1.0.36.0"
+version: "1.0.37.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 owner: "liamfo993"
 overview: "Sync progress, browse watch history, and manage media visibility between users"
 description: >
   Adds a "Sync progress" button to movie, series, season and episode pages, watch status on movie
-  and episode pages, an optional all-user Watch History avatar-menu shortcut, a watch history dashboard,
+  and episode pages, configurable per-user Watch History visibility, an optional all-user avatar-menu shortcut,
+  a watch history dashboard,
   separate playback-limits and progress-sync tabs,
   server-enforced per-user and scheduled media visibility, and per-user concurrent playback limits. Copy another
   user's resume position and watched state to your account once, or link a movie or series to keep
@@ -17,4 +18,4 @@ imageUrl: "https://raw.githubusercontent.com/liamfo993/jellyfin-plugin-progress-
 artifacts:
   - "Jellyfin.Plugin.ProgressSync.dll"
 changelog: |-
-  Add an optional Watch History shortcut to Jellyfin's avatar menu for all users.
+  Add configurable per-user Watch History visibility and improve mobile poster sizing.

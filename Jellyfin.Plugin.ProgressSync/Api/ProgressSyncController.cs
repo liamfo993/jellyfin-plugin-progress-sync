@@ -48,6 +48,7 @@ public sealed class ProgressSyncController : ControllerBase
     private readonly PushoverNotificationService _pushoverService;
     private readonly WebInjectionStatus _injectionStatus;
     private readonly WatchHistoryMenuStore _watchHistoryMenu;
+    private readonly WatchHistoryVisibilityStore _watchHistoryVisibility;
     private readonly ILogger<ProgressSyncController> _logger;
 
     /// <summary>
@@ -64,6 +65,7 @@ public sealed class ProgressSyncController : ControllerBase
     /// <param name="pushoverService">The Pushover notification service.</param>
     /// <param name="injectionStatus">The web client integration status.</param>
     /// <param name="watchHistoryMenu">Whether Watch History is shown in Jellyfin's user menu.</param>
+    /// <param name="watchHistoryVisibility">The per-user Watch History visibility settings.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{ProgressSyncController}"/> interface.</param>
     public ProgressSyncController(
         ILibraryManager libraryManager,
@@ -77,6 +79,7 @@ public sealed class ProgressSyncController : ControllerBase
         PushoverNotificationService pushoverService,
         WebInjectionStatus injectionStatus,
         WatchHistoryMenuStore watchHistoryMenu,
+        WatchHistoryVisibilityStore watchHistoryVisibility,
         ILogger<ProgressSyncController> logger)
     {
         _libraryManager = libraryManager;
@@ -90,6 +93,7 @@ public sealed class ProgressSyncController : ControllerBase
         _pushoverService = pushoverService;
         _injectionStatus = injectionStatus;
         _watchHistoryMenu = watchHistoryMenu;
+        _watchHistoryVisibility = watchHistoryVisibility;
         _logger = logger;
     }
 
@@ -170,7 +174,8 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         var statuses = _userManager.GetUsers()
-            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled)
+                && _watchHistoryVisibility.CanView(me.Id, user.Id))
             .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
             .Select(user => GetWatchStatus(user, [item]))
             .ToList();
@@ -189,13 +194,15 @@ public sealed class ProgressSyncController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public ActionResult<IReadOnlyList<RecentlyWatchedUserDto>> GetRecentlyWatchedUsers()
     {
-        if (GetCurrentUser() is null)
+        var caller = GetCurrentUser();
+        if (caller is null)
         {
             return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         return _userManager.GetUsers()
-            .Where(user => !user.HasPermission(PermissionKind.IsDisabled))
+            .Where(user => !user.HasPermission(PermissionKind.IsDisabled)
+                && _watchHistoryVisibility.CanView(caller.Id, user.Id))
             .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
             .Select(user => new RecentlyWatchedUserDto(user.Id, user.Username))
             .ToList();
@@ -222,7 +229,7 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         var user = GetEnabledUser(userId);
-        if (user is null)
+        if (user is null || !_watchHistoryVisibility.CanView(caller.Id, user.Id))
         {
             return NotFound();
         }
@@ -251,7 +258,7 @@ public sealed class ProgressSyncController : ControllerBase
         }
 
         var user = GetEnabledUser(userId);
-        if (user is null)
+        if (user is null || !_watchHistoryVisibility.CanView(caller.Id, user.Id))
         {
             return NotFound();
         }
@@ -610,6 +617,53 @@ public sealed class ProgressSyncController : ControllerBase
 
         _watchHistoryMenu.Save(settings);
         _logger.LogInformation("Progress Sync: administrator {State} the Watch History user-menu link", settings.Enabled ? "enabled" : "disabled");
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Gets per-viewer Watch History visibility settings for the administrator UI.
+    /// </summary>
+    /// <returns>The current rules and enabled users.</returns>
+    [HttpGet("Admin/WatchHistoryVisibility")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<WatchHistoryVisibilityResponse> GetWatchHistoryVisibility()
+    {
+        var settings = _watchHistoryVisibility.Current;
+        return new WatchHistoryVisibilityResponse(
+            settings.IsConfigured,
+            GetEnabledAdminUsers(),
+            settings.Rules ?? []);
+    }
+
+    /// <summary>
+    /// Replaces per-viewer Watch History visibility settings.
+    /// </summary>
+    /// <param name="settings">The visibility rules.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/WatchHistoryVisibility")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateWatchHistoryVisibility([FromBody] WatchHistoryVisibilitySettings? settings)
+    {
+        var enabledUserIds = GetEnabledAdminUsers().Select(user => user.Id).ToHashSet();
+        if (settings?.Rules is null
+            || settings.Rules.Count != enabledUserIds.Count
+            || settings.Rules.Any(rule => rule is null
+                || rule.UserId == Guid.Empty
+                || !enabledUserIds.Contains(rule.UserId)
+                || rule.VisibleUserIds is null
+                || rule.VisibleUserIds.Any(id => !enabledUserIds.Contains(id))
+                || rule.VisibleUserIds.Distinct().Count() != rule.VisibleUserIds.Count)
+            || settings.Rules.Select(rule => rule.UserId).Distinct().Count() != settings.Rules.Count
+            || !enabledUserIds.SetEquals(settings.Rules.Select(rule => rule.UserId)))
+        {
+            return BadRequest("Provide one visibility rule for every enabled user and select only unique enabled users.");
+        }
+
+        _watchHistoryVisibility.Save(settings);
+        _logger.LogInformation("Progress Sync: administrator updated Watch History visibility for {UserCount} users", enabledUserIds.Count);
         return NoContent();
     }
 

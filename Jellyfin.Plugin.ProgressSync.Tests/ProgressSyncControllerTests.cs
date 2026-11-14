@@ -36,6 +36,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
     private readonly ConcurrentStreamLimitStore _streamLimits;
     private readonly PushoverNotificationStore _pushoverSettings;
     private readonly WatchHistoryMenuStore _watchHistoryMenu;
+    private readonly WatchHistoryVisibilityStore _watchHistoryVisibility;
     private readonly ProgressCopier _copier;
     private readonly User _alice;
     private readonly User _bob;
@@ -57,6 +58,9 @@ public sealed class ProgressSyncControllerTests : IDisposable
         _watchHistoryMenu = new WatchHistoryMenuStore(
             Path.Combine(_dir, "watch-history-menu.json"),
             NullLogger<WatchHistoryMenuStore>.Instance);
+        _watchHistoryVisibility = new WatchHistoryVisibilityStore(
+            Path.Combine(_dir, "watch-history-visibility.json"),
+            NullLogger<WatchHistoryVisibilityStore>.Instance);
         _copier = new ProgressCopier(_server.Library.Object, _server.UserData.Object, NullLogger<ProgressCopier>.Instance);
         _alice = _server.AddUser("alice");
         _bob = _server.AddUser("bob");
@@ -95,6 +99,7 @@ public sealed class ProgressSyncControllerTests : IDisposable
                 NullLogger<PushoverNotificationService>.Instance),
             new WebInjectionStatus(),
             _watchHistoryMenu,
+            _watchHistoryVisibility,
             NullLogger<ProgressSyncController>.Instance);
         var claimValue = rawClaim ?? caller?.Id.ToString("N");
         Claim[] claims = claimValue is null ? [] : [new Claim("Jellyfin-UserId", claimValue)];
@@ -211,6 +216,34 @@ public sealed class ProgressSyncControllerTests : IDisposable
         Assert.Equal(_bob.Id, result[1].Id);
         Assert.Equal(charlie.Id, result[2].Id);
         Assert.Equal(403, Status(As(null).GetRecentlyWatchedUsers()));
+    }
+
+    [Fact]
+    public void WatchHistoryVisibility_DefaultsToAllAndRestrictsListsAndHistory()
+    {
+        var users = As(_alice).GetRecentlyWatchedUsers().Value!;
+        Assert.Equal(2, users.Count);
+
+        Assert.Equal(204, Status(As(_alice).UpdateWatchHistoryVisibility(new WatchHistoryVisibilitySettings(true, [
+            new WatchHistoryVisibilityRule(_alice.Id, [_alice.Id]),
+            new WatchHistoryVisibilityRule(_bob.Id, [_bob.Id])
+        ]))));
+
+        Assert.Equal(_alice.Id, Assert.Single(As(_alice).GetRecentlyWatchedUsers().Value!).Id);
+        Assert.Equal(_bob.Id, Assert.Single(As(_bob).GetRecentlyWatchedUsers().Value!).Id);
+        Assert.Equal(404, Status(As(_bob).GetUserRecentlyWatched(_alice.Id)));
+        Assert.Equal(404, Status(As(_bob).GetUserInProgress(_alice.Id)));
+        Assert.Empty(As(_alice).GetUserRecentlyWatched(_alice.Id).Value!);
+        Assert.Equal(_alice.Id, Assert.Single(As(_alice).GetWatchStatus(_movie.Id).Value!).UserId);
+    }
+
+    [Fact]
+    public void WatchHistoryVisibility_RejectsInvalidRules()
+    {
+        Assert.Equal(400, Status(As(_alice).UpdateWatchHistoryVisibility(new WatchHistoryVisibilitySettings(true, [
+            new WatchHistoryVisibilityRule(_alice.Id, [_alice.Id]),
+            new WatchHistoryVisibilityRule(_bob.Id, [Guid.NewGuid()])
+        ]))));
     }
 
     [Fact]
