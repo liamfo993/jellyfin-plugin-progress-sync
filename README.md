@@ -30,6 +30,7 @@ the original per-title progress controls.
   - Browse recent completed and in-progress movies and episodes by user.
   - Optionally add a Watch History shortcut to every user's Jellyfin avatar menu.
   - Configure which users can see each other's watch history and title-page watch status.
+  - Optionally display community ratings on Watch History covers using the Ratings plugin.
   - See users' watched or in-progress status on movie and episode pages.
 - **Playback limits**
   - Set a maximum number of concurrent streams per user; zero means unlimited.
@@ -78,6 +79,16 @@ The **Watch history visibility** section lets admins choose which other users ea
 in Watch History and the title-page **Watch status** dialog. Until custom rules are saved, all
 enabled users can see one another; each user can always see their own history.
 Admins can also open the Progress Sync plugin page from the Plugins menu.
+
+### Watch History ratings
+
+The **Ratings** tab can show community-average ratings on Watch History covers in both the
+Dashboard and the user-menu dialog. This requires the
+[Jellyfin Ratings plugin](https://github.com/K3ntas/jellyfin-plugin-ratings) with its ratings
+feature enabled and its BatchStats API available. Install and configure it separately, then
+enable the integration in the Ratings tab. Items without ratings have no badge; individual
+users' ratings are not shown. Reopen Watch History after changing the setting.
+Ratings plugin version 1.0.369.0 / 2.0.354.0 or newer is required.
 
 ### Progress sync
 

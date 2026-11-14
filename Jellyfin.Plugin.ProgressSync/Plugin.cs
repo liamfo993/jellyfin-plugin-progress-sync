@@ -77,6 +77,16 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "Ratings",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.Ratings.html"
+            },
+            new PluginPageInfo
+            {
+                Name = "Ratings.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Pages.Ratings.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "MediaVisibility",
                 EmbeddedResourcePath = GetType().Namespace + ".Pages.MediaVisibility.html"
             },

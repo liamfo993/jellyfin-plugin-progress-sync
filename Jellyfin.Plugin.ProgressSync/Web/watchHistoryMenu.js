@@ -198,6 +198,11 @@ export default function openWatchHistory(apiClient, dialogHelper) {
         }
 
         hint.textContent = totalItems + ' recent and in-progress items';
+        if (totalItems > 0) {
+            import(apiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                .then(module => module.default(apiClient, views.map(view => view.grid)))
+                .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+        }
         if (allLoaded) {
             card.dataset.loaded = 'true';
         }
@@ -233,6 +238,7 @@ export default function openWatchHistory(apiClient, dialogHelper) {
     function createHistoryCard(item) {
         const card = document.createElement('a');
         card.className = 'ps-wh-card';
+        card.dataset.ratingItemId = item.ItemId;
         card.href = '#/details?id=' + encodeURIComponent(item.ItemId);
         card.addEventListener('click', function () {
             dialogHelper.close(dialog);
@@ -251,7 +257,10 @@ export default function openWatchHistory(apiClient, dialogHelper) {
                 image.dataset.fallback = 'true';
                 image.src = apiClient.getScaledImageUrl(item.ItemId, { type: 'Primary', maxWidth: 360, quality: 90 });
             } else {
-                poster.textContent = item.ItemType === 'Movie' ? 'Movie artwork unavailable' : 'Episode artwork unavailable';
+                image.remove();
+                const placeholder = document.createElement('span');
+                placeholder.textContent = item.ItemType === 'Movie' ? 'Movie artwork unavailable' : 'Episode artwork unavailable';
+                poster.prepend(placeholder);
             }
         });
         poster.appendChild(image);

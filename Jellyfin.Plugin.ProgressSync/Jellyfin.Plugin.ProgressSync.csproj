@@ -32,6 +32,8 @@
     <EmbeddedResource Include="Web\progressSync.js" />
     <None Remove="Web\watchHistoryMenu.js" />
     <EmbeddedResource Include="Web\watchHistoryMenu.js" />
+    <None Remove="Web\watchHistoryRatings.js" />
+    <EmbeddedResource Include="Web\watchHistoryRatings.js" />
     <None Remove="Pages\WatchHistory.html" />
     <EmbeddedResource Include="Pages\WatchHistory.html" />
     <None Remove="Pages\WatchHistory.js" />
@@ -44,6 +46,10 @@
     <EmbeddedResource Include="Pages\Notifications.html" />
     <None Remove="Pages\Notifications.js" />
     <EmbeddedResource Include="Pages\Notifications.js" />
+    <None Remove="Pages\Ratings.html" />
+    <EmbeddedResource Include="Pages\Ratings.html" />
+    <None Remove="Pages\Ratings.js" />
+    <EmbeddedResource Include="Pages\Ratings.js" />
     <None Remove="Pages\MediaVisibility.html" />
     <EmbeddedResource Include="Pages\MediaVisibility.html" />
     <None Remove="Pages\MediaVisibility.js" />

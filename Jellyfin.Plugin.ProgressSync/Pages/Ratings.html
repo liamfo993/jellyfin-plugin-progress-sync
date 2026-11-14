@@ -1,0 +1,33 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/Ratings.js">
+    <style>
+        #progressSyncRatings .ps-panel {
+            padding: 1.25em;
+            margin-bottom: 1.25em;
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            background: rgba(255,255,255,.055);
+        }
+        #progressSyncRatings .ps-status { min-height: 1.5em; margin: .9em 0; }
+    </style>
+    <div id="progressSyncRatings" data-role="content">
+        <div class="content-primary">
+            <section class="ps-panel">
+                <h1>Watch History ratings</h1>
+                <p>This optional integration requires the
+                    <a href="https://github.com/K3ntas/jellyfin-plugin-ratings" target="_blank" rel="noopener noreferrer">Jellyfin Ratings plugin</a>
+                    to be installed and enabled on this server. It displays the plugin's community average on Watch History covers, not individual user ratings.</p>
+                <p class="fieldDescription">Requires Ratings plugin 1.0.369.0 / 2.0.354.0 or newer. Covers without ratings will not have a badge.</p>
+                <p id="psRatingsDependencyStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></p>
+                <form id="psRatingsForm">
+                    <label>
+                        <input id="psRatingsEnabled" type="checkbox" disabled>
+                        <span>Show community ratings on Watch History covers</span>
+                    </label>
+                    <p id="psRatingsSaveStatus" class="fieldDescription ps-status" role="status" aria-live="polite"></p>
+                    <button id="psSaveRatings" is="emby-button" type="submit" class="raised button-submit block" disabled><span>Save</span></button>
+                </form>
+            </section>
+        </div>
+    </div>
+</div>

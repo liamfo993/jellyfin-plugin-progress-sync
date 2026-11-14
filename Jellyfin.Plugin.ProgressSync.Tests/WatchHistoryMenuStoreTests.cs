@@ -23,6 +23,22 @@ public sealed class WatchHistoryMenuStoreTests : IDisposable
         Assert.True(NewStore().Current.Enabled);
     }
 
+    [Fact]
+    public void SettingsCanBeUpdatedIndependentlyAndPersist()
+    {
+        var store = NewStore();
+        Assert.False(store.Current.RatingsEnabled);
+        store.SetRatingsEnabled(true);
+        store.SetMenuEnabled(true);
+        store.SetMenuEnabled(false);
+
+        var reloaded = NewStore().Current;
+        Assert.False(reloaded.Enabled);
+        Assert.True(reloaded.RatingsEnabled);
+        store.SetRatingsEnabled(false);
+        Assert.False(NewStore().Current.RatingsEnabled);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

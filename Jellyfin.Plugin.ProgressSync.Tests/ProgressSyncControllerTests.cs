@@ -257,6 +257,18 @@ public sealed class ProgressSyncControllerTests : IDisposable
     }
 
     [Fact]
+    public void WatchHistoryRatingsSettings_AreIndependentOfMenuSettings()
+    {
+        var controller = As(_alice);
+        Assert.False(controller.GetWatchHistoryRatingsSettings().Value!.Enabled);
+        Assert.Equal(400, Status(controller.UpdateWatchHistoryRatingsSettings(null)));
+        Assert.Equal(204, Status(controller.UpdateWatchHistoryRatingsSettings(new WatchHistoryMenuSettings(true))));
+        Assert.Equal(204, Status(controller.UpdateWatchHistoryMenuSettings(new WatchHistoryMenuSettings(true))));
+        Assert.True(controller.GetWatchHistoryRatingsSettings().Value!.Enabled);
+        Assert.True(controller.GetWatchHistoryMenuSettings().Value!.Enabled);
+    }
+
+    [Fact]
     public void StreamLimits_AdminCanReadAndReplaceEnabledUsersLimits()
     {
         var limits = new[]

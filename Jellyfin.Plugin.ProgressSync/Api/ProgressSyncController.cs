@@ -36,6 +36,7 @@ public sealed class ProgressSyncController : ControllerBase
     private const string UserIdClaimType = "Jellyfin-UserId";
     private const string ClientScriptResource = "Jellyfin.Plugin.ProgressSync.Web.progressSync.js";
     private const string WatchHistoryMenuScriptResource = "Jellyfin.Plugin.ProgressSync.Web.watchHistoryMenu.js";
+    private const string WatchHistoryRatingsScriptResource = "Jellyfin.Plugin.ProgressSync.Web.watchHistoryRatings.js";
 
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -615,9 +616,54 @@ public sealed class ProgressSyncController : ControllerBase
             return BadRequest("Settings are required.");
         }
 
-        _watchHistoryMenu.Save(settings);
+        _watchHistoryMenu.SetMenuEnabled(settings.Enabled);
         _logger.LogInformation("Progress Sync: administrator {State} the Watch History user-menu link", settings.Enabled ? "enabled" : "disabled");
         return NoContent();
+    }
+
+    /// <summary>Gets whether Ratings plugin badges are enabled on Watch History.</summary>
+    /// <returns>The current ratings setting.</returns>
+    [HttpGet("WatchHistoryRatings")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<WatchHistoryMenuSettings> GetWatchHistoryRatingsSettings()
+    {
+        return new WatchHistoryMenuSettings(Enabled: _watchHistoryMenu.Current.RatingsEnabled);
+    }
+
+    /// <summary>Updates whether Ratings plugin badges appear on Watch History.</summary>
+    /// <param name="settings">The ratings integration setting.</param>
+    /// <returns>No content when saved.</returns>
+    [HttpPost("Admin/WatchHistoryRatings")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateWatchHistoryRatingsSettings([FromBody] WatchHistoryMenuSettings? settings)
+    {
+        if (settings is null)
+        {
+            return BadRequest("Settings are required.");
+        }
+
+        _watchHistoryMenu.SetRatingsEnabled(settings.Enabled);
+        _logger.LogInformation("Progress Sync: administrator {State} Watch History Ratings integration", settings.Enabled ? "enabled" : "disabled");
+        return NoContent();
+    }
+
+    /// <summary>Serves the shared Watch History ratings script.</summary>
+    /// <returns>The script.</returns>
+    [HttpGet("WatchHistoryRatingsScript")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetWatchHistoryRatingsScript()
+    {
+        var stream = typeof(ProgressSyncController).Assembly.GetManifestResourceStream(WatchHistoryRatingsScriptResource);
+        if (stream is null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = "no-cache";
+        return File(stream, "application/javascript; charset=utf-8");
     }
 
     /// <summary>

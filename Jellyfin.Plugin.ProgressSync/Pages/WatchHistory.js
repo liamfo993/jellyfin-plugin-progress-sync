@@ -8,7 +8,8 @@ function getTabs() {
         { href: configurationPageUrl('PlaybackLimits'), name: 'Playback limits' },
         { href: configurationPageUrl('Notifications'), name: 'Notifications' },
         { href: configurationPageUrl('ProgressSync'), name: 'Progress sync' },
-        { href: configurationPageUrl('MediaVisibility'), name: 'Media visibility' }
+        { href: configurationPageUrl('MediaVisibility'), name: 'Media visibility' },
+        { href: configurationPageUrl('Ratings'), name: 'Ratings' }
     ];
 }
 
@@ -340,6 +341,11 @@ export default function (view) {
             }
 
             hint.textContent = totalItems + ' recent and in-progress items';
+            if (totalItems > 0) {
+                import(ApiClient.getUrl('ProgressSync/WatchHistoryRatingsScript'))
+                    .then(module => module.default(ApiClient, historyViews.map(viewConfig => viewConfig.grid)))
+                    .catch(error => console.warn('[ProgressSync]', 'could not load Watch History ratings', error));
+            }
             if (allLoaded) {
                 card.dataset.loaded = 'true';
             }
@@ -409,6 +415,7 @@ function populateHistoryGrid(grid, items, emptyMessage) {
 function createHistoryCard(item) {
     const card = document.createElement('a');
     card.className = 'ps-history-card';
+    card.dataset.ratingItemId = item.ItemId;
     card.href = '#/details?id=' + encodeURIComponent(item.ItemId);
 
     const poster = document.createElement('div');
@@ -424,7 +431,7 @@ function createHistoryCard(item) {
             image.dataset.fallback = 'true';
             image.src = ApiClient.getScaledImageUrl(item.ItemId, { type: 'Primary', maxWidth: 360, quality: 90 });
         } else {
-            showPosterPlaceholder(poster, item.ItemType);
+            showPosterPlaceholder(image, item.ItemType);
         }
     });
     poster.appendChild(image);
@@ -470,11 +477,11 @@ function createHistoryCard(item) {
     return card;
 }
 
-function showPosterPlaceholder(poster, itemType) {
+function showPosterPlaceholder(image, itemType) {
     const placeholder = document.createElement('span');
     placeholder.className = 'ps-history-placeholder';
     placeholder.textContent = itemType === 'Movie' ? 'Movie artwork unavailable' : 'Episode artwork unavailable';
-    poster.replaceChildren(placeholder);
+    image.replaceWith(placeholder);
 }
 
 function formatDate(value) {

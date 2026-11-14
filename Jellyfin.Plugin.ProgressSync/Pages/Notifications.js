@@ -8,7 +8,8 @@ function getTabs() {
         { href: configurationPageUrl('PlaybackLimits'), name: 'Playback limits' },
         { href: configurationPageUrl('Notifications'), name: 'Notifications' },
         { href: configurationPageUrl('ProgressSync'), name: 'Progress sync' },
-        { href: configurationPageUrl('MediaVisibility'), name: 'Media visibility' }
+        { href: configurationPageUrl('MediaVisibility'), name: 'Media visibility' },
+        { href: configurationPageUrl('Ratings'), name: 'Ratings' }
     ];
 }
 

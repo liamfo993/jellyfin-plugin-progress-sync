@@ -44,6 +44,26 @@ public sealed class WatchHistoryMenuStore
     /// <summary>Gets the current settings snapshot.</summary>
     public WatchHistoryMenuSettings Current => _current;
 
+    /// <summary>Updates the user-menu setting without changing other settings.</summary>
+    /// <param name="enabled">Whether the menu entry is enabled.</param>
+    public void SetMenuEnabled(bool enabled)
+    {
+        lock (_writeLock)
+        {
+            Save(_current with { Enabled = enabled });
+        }
+    }
+
+    /// <summary>Updates the Ratings integration without changing other settings.</summary>
+    /// <param name="enabled">Whether rating badges are enabled.</param>
+    public void SetRatingsEnabled(bool enabled)
+    {
+        lock (_writeLock)
+        {
+            Save(_current with { RatingsEnabled = enabled });
+        }
+    }
+
     /// <summary>Persists and publishes settings.</summary>
     /// <param name="settings">The settings to save.</param>
     public void Save(WatchHistoryMenuSettings settings)
